@@ -1,8 +1,11 @@
 package com.unimag.trip_service.controllers;
 
+import com.unimag.trip_service.dtos.reservation.CreateReservationDTO;
+import com.unimag.trip_service.dtos.reservation.ResponseReservationDTO;
 import com.unimag.trip_service.dtos.trip.CreateTripDTO;
 import com.unimag.trip_service.dtos.trip.ResponseTripDTO;
 import com.unimag.trip_service.entities.Trip;
+import com.unimag.trip_service.services.ReservationService;
 import com.unimag.trip_service.services.TripService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +24,7 @@ import java.util.List;
 public class TripController {
 
     private final TripService tripService;
+    private final ReservationService reservationService;
 
     @GetMapping
     public ResponseEntity<List<ResponseTripDTO>> getTripsByFilters(
@@ -39,6 +43,13 @@ public class TripController {
         // falta añadir en el controller @AuthenticationPrincipal(expression = "id") Long driverId una vez se añada el security
         ResponseTripDTO trip = tripService.saveTrip(createTripDTO, driverId);
         return new ResponseEntity<>(trip, HttpStatus.CREATED);
+    }
+
+    // aqui hay que revisar esa pathVariable tripId
+    @PostMapping("{tripId}/reservations")
+    public ResponseEntity<ResponseReservationDTO> saveReservation(@PathVariable String tripId, @RequestBody @Valid CreateReservationDTO createReservationDTO) {
+        ResponseReservationDTO responseReservationDTO = reservationService.registerReservation(createReservationDTO);
+        return ResponseEntity.ok(responseReservationDTO);
     }
 
 }

@@ -4,6 +4,7 @@ import com.unimag.trip_service.dtos.trip.CreateTripDTO;
 import com.unimag.trip_service.dtos.trip.ResponseTripDTO;
 import com.unimag.trip_service.entities.Trip;
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring")
 public interface TripMapper {
