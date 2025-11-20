@@ -4,6 +4,7 @@ import com.unimag.trip_service.dtos.reservation.CreateReservationDTO;
 import com.unimag.trip_service.dtos.reservation.ResponseReservationDTO;
 import com.unimag.trip_service.entities.Reservation;
 import com.unimag.trip_service.entities.Trip;
+import com.unimag.trip_service.exceptions.creationException.ReservationCreationException;
 import com.unimag.trip_service.exceptions.notfound.ReservationNotFoundException;
 import com.unimag.trip_service.exceptions.notfound.TripNotFoundException;
 import com.unimag.trip_service.mappers.ReservationMapper;
@@ -27,8 +28,16 @@ public class ReservationServiceImpl implements ReservationService {
         Trip trip = tripRepository.findById(createReservationDTO.tripId())
                 .orElseThrow(() -> new TripNotFoundException("Trip not found"));
 
+        if (trip.getSeatsAvailable() == 0){
+            throw new ReservationCreationException("Seats not available");
+        }else {
+            trip.setSeatsAvailable(trip.getSeatsAvailable() - 1);
+        }
+
         Reservation reservation = reservationMapper.createReservationDTOToReservation(createReservationDTO);
         reservation.setTrip(trip);
+        trip.getReservations().add(reservation);
+        tripRepository.save(trip);
 
         return reservationMapper.reservationToResponseDTO(reservationRepository.save(reservation));
     }
