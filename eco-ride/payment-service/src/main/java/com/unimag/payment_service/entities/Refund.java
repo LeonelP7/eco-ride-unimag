@@ -1,9 +1,6 @@
 package com.unimag.payment_service.entities;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -19,7 +16,9 @@ public class Refund {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private String id;
-    private String chargeId;
+    @OneToOne
+    @JoinColumn(name = "charge_id")
+    private Charge charge;
     private Double amount;
     private String reason;
     private LocalDateTime createdAt;

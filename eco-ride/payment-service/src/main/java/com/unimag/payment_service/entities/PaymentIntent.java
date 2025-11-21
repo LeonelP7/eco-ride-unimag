@@ -1,6 +1,6 @@
 package com.unimag.payment_service.entities;
 
-import com.unimag.payment_service.utils.PaymentStatus;
+import com.unimag.payment_service.enums.PaymentStatus;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;

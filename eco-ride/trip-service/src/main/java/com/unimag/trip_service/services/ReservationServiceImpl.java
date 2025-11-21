@@ -73,7 +73,7 @@ public class ReservationServiceImpl implements ReservationService {
     }
 
     @Override
-    public void processPaymentAuthorized(PaymentAuthorized event){
+    public void processPaymentAuthorized(PaymentAuthorizedEvent event){
         Reservation reservation = reservationRepository.findById(event.reservationId()).orElseThrow(() -> new ReservationNotFoundException("Reservation not found"));
 
         reservation.setStatus(ReservationStatus.CONFIRMED);

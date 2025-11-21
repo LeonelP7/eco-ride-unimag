@@ -1,9 +1,6 @@
 package com.unimag.payment_service.entities;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -18,7 +15,9 @@ public class Charge {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private String id;
-    private String paymentIntentId;
+    @OneToOne
+    @JoinColumn(name = "payment_intent_id")
+    private PaymentIntent paymentIntent;
     private String provider;
     private String providerRef;
     private LocalDateTime capturedAt;

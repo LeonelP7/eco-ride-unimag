@@ -1,4 +1,4 @@
-package com.unimag.trip_service.config;
+package com.unimag.payment_service.config;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.*;

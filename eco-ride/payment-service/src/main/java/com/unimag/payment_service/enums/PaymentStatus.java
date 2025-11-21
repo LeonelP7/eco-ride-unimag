@@ -1,4 +1,4 @@
-package com.unimag.payment_service.utils;
+package com.unimag.payment_service.enums;
 
 public enum PaymentStatus {
     REQUIRES_ACTION,

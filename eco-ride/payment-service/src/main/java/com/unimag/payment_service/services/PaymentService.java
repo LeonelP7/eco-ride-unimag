@@ -5,5 +5,5 @@ import com.unimag.payment_service.events.ReservationRequestedEvent;
 
 public interface PaymentService {
 
-    PaymentResponseDTO processReservePayment(ReservationRequestedEvent event);
+    PaymentResponseDTO processReservationRequested(ReservationRequestedEvent event);
 }
