@@ -4,24 +4,30 @@ import com.unimag.trip_service.dtos.reservation.CreateReservationDTO;
 import com.unimag.trip_service.dtos.reservation.ResponseReservationDTO;
 import com.unimag.trip_service.entities.Reservation;
 import com.unimag.trip_service.entities.Trip;
+import com.unimag.trip_service.enums.ReservationStatus;
+import com.unimag.trip_service.events.*;
 import com.unimag.trip_service.exceptions.creationException.ReservationCreationException;
 import com.unimag.trip_service.exceptions.notfound.ReservationNotFoundException;
 import com.unimag.trip_service.exceptions.notfound.TripNotFoundException;
 import com.unimag.trip_service.mappers.ReservationMapper;
 import com.unimag.trip_service.respositories.ReservationRepository;
 import com.unimag.trip_service.respositories.TripRepository;
+import com.unimag.trip_service.services.publisher.EventPublisherService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ReservationServiceImpl implements ReservationService {
 
     private final ReservationRepository reservationRepository;
     private final TripRepository tripRepository;
     private final ReservationMapper  reservationMapper;
+    private final EventPublisherService eventPublisher;
 
     @Override
     public ResponseReservationDTO registerReservation(CreateReservationDTO createReservationDTO) {
@@ -35,11 +41,20 @@ public class ReservationServiceImpl implements ReservationService {
         }
 
         Reservation reservation = reservationMapper.createReservationDTOToReservation(createReservationDTO);
+        reservation.setStatus(ReservationStatus.PENDING);
         reservation.setTrip(trip);
         trip.getReservations().add(reservation);
         tripRepository.save(trip);
+        reservation = reservationRepository.save(reservation);
 
-        return reservationMapper.reservationToResponseDTO(reservationRepository.save(reservation));
+        eventPublisher.publishReservationRequested(new ReservationRequestedEvent(
+                reservation.getId(),
+                trip.getId(),
+                reservation.getPassengerId(),
+                trip.getPrice()
+        ));
+
+        return reservationMapper.reservationToResponseDTO(reservation);
     }
 
     @Override
@@ -55,5 +70,26 @@ public class ReservationServiceImpl implements ReservationService {
         return reservationRepository.findById(id)
                 .map(reservationMapper::reservationToResponseDTO)
                 .orElseThrow(() -> new ReservationNotFoundException("Reservation not found"));
+    }
+
+    @Override
+    public void processPaymentAuthorized(PaymentAuthorized event){
+        Reservation reservation = reservationRepository.findById(event.reservationId()).orElseThrow(() -> new ReservationNotFoundException("Reservation not found"));
+
+        reservation.setStatus(ReservationStatus.CONFIRMED);
+        reservationRepository.save(reservation);
+
+        eventPublisher.publishReservationConfirmedEvent(new ReservationConfirmedEvent(reservation.getId()));
+    }
+
+    @Override
+    public void processPaymentFailed(PaymentFailedEvent event){
+        Reservation reservation = reservationRepository.findById(event.reservationId()).orElseThrow(() -> new ReservationNotFoundException("Reservation not found"));
+
+        reservation.setStatus(ReservationStatus.CANCELLED);
+        reservationRepository.save(reservation);
+
+        eventPublisher
+                .publishReservationCancelledEvent(new ReservationCancelledEvent(reservation.getId(), "Payment failed"));
     }
 }

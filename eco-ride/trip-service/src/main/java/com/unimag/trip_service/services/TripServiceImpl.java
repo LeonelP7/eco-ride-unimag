@@ -5,6 +5,7 @@ import com.unimag.trip_service.dtos.trip.ResponseTripDTO;
 import com.unimag.trip_service.entities.Trip;
 import com.unimag.trip_service.mappers.TripMapper;
 import com.unimag.trip_service.respositories.TripRepository;
+import com.unimag.trip_service.services.publisher.EventPublisherService;
 import com.unimag.trip_service.util.TripSpecifications;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.jpa.domain.Specification;

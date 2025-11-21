@@ -7,7 +7,6 @@ import java.time.LocalDateTime;
 public record CreateReservationDTO(
     String tripId,
     String passengerId,
-    ReservationStatus status,
     LocalDateTime createdAt
 ) {
 }
