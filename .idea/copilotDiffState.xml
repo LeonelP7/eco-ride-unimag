@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CopilotDiffPersistence">
+    <option name="pendingDiffs">
+      <map>
+        <entry key="$PROJECT_DIR$/eco-ride/payment-service/src/main/java/com/unimag/payment_service/entities/PaymentStatus.java">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/eco-ride/payment-service/src/main/java/com/unimag/payment_service/entities/PaymentStatus.java" />
+              <option name="updatedContent" value="package com.unimag.payment_service.entities;&#10;&#10;// PaymentStatus moved to com.unimag.payment_service.utils.PaymentStatus&#10;// This file intentionally left without a type to avoid duplicate enum definitions.&#10;" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>
