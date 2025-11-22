@@ -20,8 +20,9 @@ public class RabbitConfig {
     public static final String QUEUE_PAYMENT_AUTHORIZED = "payment.authorized.queue";
     public static final String QUEUE_PAYMENT_FAILED = "payment.failed.queue";
 
-    // PaymentService consume esta cola
+    // PaymentService consume estas 2 colas
     public static final String QUEUE_RESERVATION_REQUESTED = "reservation.requested.queue";
+    public static final String QUEUE_RESERVATION_CANCELLED = "reservation.cancelled.queue";
 
     public static final String DLQ = "dlq.reservations";
 
@@ -46,6 +47,15 @@ public class RabbitConfig {
     @Bean
     public Queue reservationRequestedQueue() {
         return QueueBuilder.durable(QUEUE_RESERVATION_REQUESTED)
+                .withArgument("x-message-ttl", 3600000)
+                .withArgument("x-dead-letter-exchange", DLX_EXCHANGE)
+                .withArgument("x-dead-letter-routing-key", "dlq.reservation")
+                .build();
+    }
+
+    @Bean
+    public Queue reservationCancelledQueue() {
+        return QueueBuilder.durable(QUEUE_RESERVATION_CANCELLED)
                 .withArgument("x-message-ttl", 3600000)
                 .withArgument("x-dead-letter-exchange", DLX_EXCHANGE)
                 .withArgument("x-dead-letter-routing-key", "dlq.reservation")
@@ -84,6 +94,14 @@ public class RabbitConfig {
         return BindingBuilder.bind(reservationRequestedQueue)
                 .to(reservationExchange)
                 .with(RK_RESERVATION_REQUESTED);
+    }
+
+    @Bean
+    public Binding bindReservationCancelledQueue(Queue reservationCancelledQueue,
+                                                 TopicExchange reservationExchange) {
+        return BindingBuilder.bind(reservationCancelledQueue)
+                .to(reservationExchange)
+                .with(RK_RESERVATION_CANCELLED);
     }
 
     @Bean

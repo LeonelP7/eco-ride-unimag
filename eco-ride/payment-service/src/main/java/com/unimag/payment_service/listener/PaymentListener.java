@@ -1,8 +1,10 @@
 package com.unimag.payment_service.listener;
 
 import com.unimag.payment_service.config.RabbitConfig;
+import com.unimag.payment_service.events.ReservationCancelledEvent;
 import com.unimag.payment_service.events.ReservationRequestedEvent;
 import com.unimag.payment_service.services.PaymentService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -20,11 +22,8 @@ public class PaymentListener {
     private final PaymentService paymentService;
     private final Set<String> processedEvents = ConcurrentHashMap.newKeySet();
 
-    /**
-     * Escucha eventos ReservationRequested desde su PROPIA cola
-     */
     @RabbitListener(queues = RabbitConfig.QUEUE_PAYMENT_AUTHORIZED)
-    public void onReservationRequested(ReservationRequestedEvent event) {
+    public void onReservationRequested(@Valid ReservationRequestedEvent event) {
         log.info("PaymentListener: received ReservationRequested: reservationId={}", event.reservationId());
 
         // Idempotencia: evitar procesar el mismo evento múltiples veces
@@ -37,6 +36,37 @@ public class PaymentListener {
         try {
             paymentService.processReservationRequested(event);
             log.info("PaymentListener: Successfully processed ReservationRequested: {}", event.reservationId());
+        } catch (Exception ex) {
+            log.error("PaymentListener: Error processing ReservationRequested for reservation {}: {}",
+                    event.reservationId(), ex.getMessage(), ex);
+
+            processedEvents.remove(eventKey); // Permitir reintento
+
+            // Rechazar sin reencolar después de ciertos errores
+//            if (ex instanceof ReservationNotFoundException) {
+//                throw new AmqpRejectAndDontRequeueException(
+//                        "Reservation not found, sending to DLQ", ex);
+//            }
+
+            // Otros errores: reintentar
+            throw ex;
+        }
+    }
+
+    @RabbitListener(queues = RabbitConfig.QUEUE_PAYMENT_AUTHORIZED)
+    public void onReservationCancelled(ReservationCancelledEvent event) {
+        log.info("PaymentListener: received ReservationCancelled: reservationId={}", event.reservationId());
+
+        // Idempotencia: evitar procesar el mismo evento múltiples veces
+        String eventKey = "reservation-cancelled-" + event.reservationId();
+        if (!processedEvents.add(eventKey)) {
+            log.warn("PaymentListener: Event already processed, skipping: {}", eventKey);
+            return; // ACK sin procesar
+        }
+
+        try {
+            paymentService.processReservationCancelled(event);
+            log.info("PaymentListener: Successfully processed ReservationCancelled: {}", event.reservationId());
         } catch (Exception ex) {
             log.error("PaymentListener: Error processing ReservationRequested for reservation {}: {}",
                     event.reservationId(), ex.getMessage(), ex);

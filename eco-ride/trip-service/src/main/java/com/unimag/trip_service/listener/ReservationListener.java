@@ -23,9 +23,6 @@ public class ReservationListener {
     private final ReservationService reservationService;
     private final Set<String> processedEvents = ConcurrentHashMap.newKeySet();
 
-    /**
-     * Escucha eventos PaymentAuthorized desde su PROPIA cola
-     */
     @RabbitListener(queues = RabbitConfig.QUEUE_PAYMENT_AUTHORIZED)
     public void onPaymentAuthorized(PaymentAuthorizedEvent event) {
         log.info("ReservationListener: received PaymentAuthorized: reservationId={}", event.reservationId());
@@ -57,9 +54,6 @@ public class ReservationListener {
         }
     }
 
-    /**
-     * Escucha eventos PaymentFailedEvent desde su PROPIA cola
-     */
     @RabbitListener(queues = RabbitConfig.QUEUE_PAYMENT_FAILED)
     public void onPaymentFailed(PaymentFailedEvent event) {
         log.info("ReservationListener: received PaymentFailed: reservationId={}, reason={}",

@@ -6,7 +6,7 @@ import com.unimag.trip_service.entities.Reservation;
 import com.unimag.trip_service.entities.Trip;
 import com.unimag.trip_service.enums.ReservationStatus;
 import com.unimag.trip_service.events.*;
-import com.unimag.trip_service.exceptions.creationException.ReservationCreationException;
+import com.unimag.trip_service.exceptions.creationExceptions.ReservationCreationException;
 import com.unimag.trip_service.exceptions.notfound.ReservationNotFoundException;
 import com.unimag.trip_service.exceptions.notfound.TripNotFoundException;
 import com.unimag.trip_service.mappers.ReservationMapper;
@@ -47,12 +47,19 @@ public class ReservationServiceImpl implements ReservationService {
         tripRepository.save(trip);
         reservation = reservationRepository.save(reservation);
 
-        eventPublisher.publishReservationRequested(new ReservationRequestedEvent(
-                reservation.getId(),
-                trip.getId(),
-                reservation.getPassengerId(),
-                trip.getPrice()
-        ));
+        log.info("Reservation created with status PENDING: {}", reservation.getId());
+
+        try {
+            eventPublisher.publishReservationRequested(new ReservationRequestedEvent(
+                    reservation.getId(),
+                    trip.getId(),
+                    reservation.getPassengerId(),
+                    trip.getPrice()
+            ));
+        } catch (Exception e) {
+            log.error("Failed to publish ReservationRequested event", e);
+            // En producción, considera guardar en outbox table para retry
+        }
 
         return reservationMapper.reservationToResponseDTO(reservation);
     }
@@ -74,22 +81,50 @@ public class ReservationServiceImpl implements ReservationService {
 
     @Override
     public void processPaymentAuthorized(PaymentAuthorizedEvent event){
-        Reservation reservation = reservationRepository.findById(event.reservationId()).orElseThrow(() -> new ReservationNotFoundException("Reservation not found"));
+        log.info("ReservationService: Processing payment authorization for reservation: {}", event.reservationId());
+
+        Reservation reservation = reservationRepository.findById(event.reservationId())
+                .orElseThrow(() -> new ReservationNotFoundException("Reservation not found: " + event.reservationId()));
 
         reservation.setStatus(ReservationStatus.CONFIRMED);
         reservationRepository.save(reservation);
 
-        eventPublisher.publishReservationConfirmedEvent(new ReservationConfirmedEvent(reservation.getId()));
+        log.info("Reservation confirmed: {}", reservation.getId());
+
+        try {
+            eventPublisher.publishReservationConfirmedEvent(
+                    new ReservationConfirmedEvent(reservation.getId())
+            );
+        } catch (Exception e) {
+            log.error("Failed to publish ReservationConfirmed event", e);
+        }
     }
 
     @Override
     public void processPaymentFailed(PaymentFailedEvent event){
-        Reservation reservation = reservationRepository.findById(event.reservationId()).orElseThrow(() -> new ReservationNotFoundException("Reservation not found"));
+        log.info("Processing payment failure for reservation: {}", event.reservationId());
 
+        Reservation reservation = reservationRepository.findById(event.reservationId())
+                .orElseThrow(() -> new ReservationNotFoundException("Reservation not found: " + event.reservationId()));
+
+        // COMPENSACIÓN: Devolver el asiento al inventario
+        Trip trip = reservation.getTrip();
+        trip.setSeatsAvailable(trip.getSeatsAvailable() + 1);
+        tripRepository.save(trip);
+
+        // Cancelar reservación
         reservation.setStatus(ReservationStatus.CANCELLED);
         reservationRepository.save(reservation);
 
-        eventPublisher
-                .publishReservationCancelledEvent(new ReservationCancelledEvent(reservation.getId(), "Payment failed"));
+        log.info("Reservation cancelled and seat returned. Reservation: {}, Reason: {}",
+                reservation.getId(), event.reason());
+
+        try {
+            eventPublisher.publishReservationCancelledEvent(
+                    new ReservationCancelledEvent(reservation.getId(), event.reason())
+            );
+        } catch (Exception e) {
+            log.error("Failed to publish ReservationCancelled event", e);
+        }
     }
 }
