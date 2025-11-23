@@ -1,16 +1,110 @@
 spring:
   cloud:
     gateway:
-      routes:
-      - id: trip-service
-        uri: lb//trip-service
-        predicates:
-        - Path=/api/v1/trips/**
-        - Path=/api/v1/reservations/**
+      server:
+        webflux:
+          default-filters:
+            - TokenRelay=
+            - RemoveRequestHeader=Cookie
+          routes:
+          - id: trip-service
+            uri: lb//trip-service
+            predicates:
+            - Path=/api/v1/trips/**
+            - Path=/api/v1/reservations/**
 
-      - id: passenger-service
-        uri: lb//passenger-service
-        predicates:
-          - Path=/api/v1/passengers/**
-          - Path=/api/v1/drivers/**
-          - Path=/api/v1/ratings/**
+          - id: passenger-service
+            uri: lb//passenger-service
+            predicates:
+              - Path=/api/v1/passengers/**
+              - Path=/api/v1/drivers/**
+              - Path=/api/v1/ratings/**
+
+  # ============================================
+  # SECURITY CONFIGURATION
+  # ============================================
+security:
+  oauth2:
+    client:
+      provider:
+        keycloak:
+          issuer-uri: http://localhost:8180/realms/eco-ride-dev
+          authorization-uri: http://localhost:8180/realms/eco-ride-dev/protocol/openid-connect/auth
+          token-uri: http://localhost:8180/realms/eco-ride-dev/protocol/openid-connect/token
+          user-info-uri: http://localhost:8180/realms/eco-ride-dev/protocol/openid-connect/userinfo
+          jwk-set-uri: http://localhost:8180/realms/eco-ride-dev/protocol/openid-connect/certs
+          user-name-attribute: preferred_username
+
+      registration:
+        # SPA/Web Client - Authorization Code + PKCE
+        keycloak:
+          provider: keycloak
+          client-id: eco-web-client
+          # NO client-secret: cliente público (PKCE)
+          authorization-grant-type: authorization_code
+          redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+          scope:
+            - openid
+            - profile
+            - email
+            - trips:read
+            - trips:write
+            - payments:charge
+            - notifications:send
+          client-authentication-method: none
+
+        # Internal Service-to-Service Client
+        eco-internal:
+          provider: keycloak
+          client-id: eco-internal-client
+          client-secret: GKL15VM9W3Hq1F5v9BV317fYuVh6p5bO
+          authorization-grant-type: client_credentials
+          scope:
+            - trips:read
+            - trips:write
+            - payments:charge
+
+    resourceserver:
+      jwt:
+        issuer-uri: http://localhost:8180/realms/eco-ride-dev
+        jwk-set-uri: http://localhost:8180/realms/eco-ride-dev/protocol/openid-connect/certs
+
+
+# ============================================
+# EUREKA DISCOVERY
+# ============================================
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${random.value}
+
+# ============================================
+# ACTUATOR & MONITORING
+# ============================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway,metrics,prometheus
+  endpoint:
+    gateway:
+      access:
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+# ============================================
+# LOGGING
+# ============================================
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.web.reactive.function.client: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
