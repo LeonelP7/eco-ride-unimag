@@ -1,0 +1,16 @@
+spring:
+  cloud:
+    gateway:
+      routes:
+      - id: trip-service
+        uri: lb//trip-service
+        predicates:
+        - Path=/api/v1/trips/**
+        - Path=/api/v1/reservations/**
+
+      - id: passenger-service
+        uri: lb//passenger-service
+        predicates:
+          - Path=/api/v1/passengers/**
+          - Path=/api/v1/drivers/**
+          - Path=/api/v1/ratings/**
