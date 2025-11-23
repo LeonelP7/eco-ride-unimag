@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @Entity(name = "refunds")
 public class Refund {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
     @OneToOne
     @JoinColumn(name = "charge_id")

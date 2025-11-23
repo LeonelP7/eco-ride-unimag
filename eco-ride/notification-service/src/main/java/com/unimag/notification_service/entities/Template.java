@@ -1,25 +1,26 @@
-package com.unimag.payment_service.entities;
+package com.unimag.notification_service.entities;
 
-import com.unimag.payment_service.enums.PaymentStatus;
+import com.unimag.notification_service.enums.Constants;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-
+@Entity(name = "templates")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity(name = "payment_intents")
-public class PaymentIntent {
+@Builder
+public class Template {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
-    private String reservationId;
-    private Double amount;
-    private String currency;
-    private PaymentStatus status;
+    private String code;
+    private String channel;
+    private String subject;
+    private String body;
 }
