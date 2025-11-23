@@ -1,10 +1,10 @@
-package com.unimagdalena.apigetway;
+package com.unimag.apigateway;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class ApiGetwayApplicationTests {
+class ApiGatewayApplicationTests {
 
     @Test
     void contextLoads() {

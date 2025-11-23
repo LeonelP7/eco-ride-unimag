@@ -52,7 +52,9 @@ public class PaymentServiceImpl implements PaymentService {
             eventPublisher.publishPaymentAuthorized( new PaymentAuthorizedEvent(
                     paymentIntent.getReservationId(),
                     paymentIntent.getId(),
-                    charge.getId()
+                    charge.getId(),
+                    "Conectarse con passenger service para solicitar email y nombre del pasajero",
+                    "Avendaño"
                     )
             );
         } catch (Exception e) {
@@ -65,12 +67,10 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public void processReservationCancelled(ReservationCancelledEvent event) {
-
         // lol
     }
 
     private void authorizePaymentIntend(PaymentIntent toAuthorize) {
-
         // logica de autorizar
 
         //de momento

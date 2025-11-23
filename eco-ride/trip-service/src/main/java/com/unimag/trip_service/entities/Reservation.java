@@ -1,29 +1,33 @@
 package com.unimag.trip_service.entities;
 
 import com.unimag.trip_service.enums.ReservationStatus;
-import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.RequiredArgsConstructor;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
 
 @Data
-@RequiredArgsConstructor
 @NoArgsConstructor
-@Entity(name = "reservations")
+@AllArgsConstructor
+@Table("reservations")
 public class Reservation {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
-    @ManyToOne
-    @JoinColumn(name = "trip_id", nullable = false)
-    private Trip trip;
-    @Column(name = "passenger_id")
+
+    @Column("trip_id")
+    private String tripId;
+
+    @Column("passenger_id")
     private String passengerId;
-    @Enumerated(EnumType.STRING)
+
+    @Column("status")
     private ReservationStatus status;
-    @Column(name = "created_at")
+
+    @Column("created_at")
     private LocalDateTime createdAt;
 }

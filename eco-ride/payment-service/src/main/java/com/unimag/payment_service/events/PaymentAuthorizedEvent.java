@@ -5,6 +5,8 @@ import java.time.LocalDateTime;
 public record PaymentAuthorizedEvent(
         String reservationId,
         String paymentIntedId,
-        String chargeId
+        String chargeId,
+        String email,
+        String passengerName
 ) {
 }
