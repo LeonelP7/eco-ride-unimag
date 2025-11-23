@@ -76,6 +76,17 @@
 			<groupId>org.springframework.cloud</groupId>
 			<artifactId>spring-cloud-stream</artifactId>
 		</dependency>
+
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+
+        <!-- JDBC SOLO para Flyway -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+        </dependency>
 	</dependencies>
 
 	<build>
@@ -114,6 +125,25 @@
 					</excludes>
 				</configuration>
 			</plugin>
+
+            <plugin>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-maven-plugin</artifactId>
+                <configuration>
+                    <url>jdbc:postgresql://localhost:5433/tripdb</url>
+                    <user>paymentuser</user>
+                    <password>paymentpass</password>
+                    <locations>
+                        <location>filesystem:src/main/resources/db/migration</location>
+                    </locations>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.postgresql</groupId>
+                        <artifactId>postgresql</artifactId>
+                    </dependency>
+                </dependencies>
+            </plugin>
 		</plugins>
 	</build>
 
