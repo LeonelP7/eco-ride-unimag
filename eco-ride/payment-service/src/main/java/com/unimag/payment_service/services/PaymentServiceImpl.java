@@ -19,6 +19,7 @@ import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +36,7 @@ public class PaymentServiceImpl implements PaymentService {
         log.info("Processing ReservationRequested event for reservationId: {}", event.reservationId());
 
         PaymentIntent paymentIntent = paymentIntendMapper.ReservationRequestedEventToPaymentIntent(event);
+        paymentIntent.setId(UUID.randomUUID().toString());
         paymentIntent.setStatus(PaymentStatus.REQUIRES_ACTION);
 
         return authorizePaymentIntent(paymentIntent)
@@ -80,6 +82,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     private Mono<Charge> createAndSaveCharge(PaymentIntent paymentIntent) {
         Charge charge = Charge.builder()
+                .id(UUID.randomUUID().toString())
                 .paymentIntentId(paymentIntent.getId())
                 .capturedAt(LocalDateTime.now())
                 .build();
