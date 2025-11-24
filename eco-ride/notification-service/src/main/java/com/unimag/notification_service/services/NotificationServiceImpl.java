@@ -75,6 +75,7 @@ public class NotificationServiceImpl implements NotificationService {
         o.setPayload(serialize(payload));
         o.setStatus(StatusEnum.PENDING);
         o.setNextAttemptAt(Instant.now());
+        return outboxRepository.save(o).map(Outbox::getId);
     }
 
 
