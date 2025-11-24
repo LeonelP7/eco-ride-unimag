@@ -10,6 +10,7 @@
         <option value="$PROJECT_DIR$/eco-ride/trip-service/pom.xml" />
         <option value="$PROJECT_DIR$/eco-ride/notification-service/pom.xml" />
         <option value="$PROJECT_DIR$/eco-ride/api-getway/pom.xml" />
+        <option value="$PROJECT_DIR$/eco-ride/api-gateway/pom.xml" />
       </list>
     </option>
   </component>
