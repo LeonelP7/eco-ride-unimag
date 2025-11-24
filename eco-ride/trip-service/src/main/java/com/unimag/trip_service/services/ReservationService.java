@@ -14,6 +14,6 @@ public interface ReservationService {
     Mono<ResponseReservationDTO> registerReservation(CreateReservationDTO createReservationDTO);
     Flux<ResponseReservationDTO> findAll();
     Mono<ResponseReservationDTO> findById(String id);
-    void processPaymentAuthorized(PaymentAuthorizedEvent event);
-    void processPaymentFailed(PaymentFailedEvent event);
+    Mono<Void> processPaymentAuthorized(PaymentAuthorizedEvent event);
+    Mono<Void> processPaymentFailed(PaymentFailedEvent event);
 }
