@@ -100,15 +100,15 @@ public class ReservationServiceImpl implements ReservationService {
     }
 
     @Override
-    public void processPaymentAuthorized(PaymentAuthorizedEvent event) {
+    public Mono<Void> processPaymentAuthorized(PaymentAuthorizedEvent event) {
         log.info("ReservationService: Processing payment authorization for reservation: {}", event.reservationId());
 
-        reservationRepository.findById(event.reservationId())
+        return reservationRepository.findById(event.reservationId())
                 .switchIfEmpty(Mono.error(new ReservationNotFoundException("Reservation not found: " + event.reservationId())))
                 .flatMap(this::confirmReservation)
                 .doOnSuccess(reservation -> publishConfirmationEvent(reservation.getId(), event.email(), event.passengerName()))
                 .doOnError(e -> log.error("Error processing payment authorization", e))
-                .subscribe();
+                .then();
     }
 
     private Mono<Reservation> confirmReservation(Reservation reservation) {
@@ -129,15 +129,15 @@ public class ReservationServiceImpl implements ReservationService {
     }
 
     @Override
-    public void processPaymentFailed(PaymentFailedEvent event) {
+    public Mono<Void> processPaymentFailed(PaymentFailedEvent event) {
         log.info("Processing payment failure for reservation: {}", event.reservationId());
 
-        reservationRepository.findById(event.reservationId())
+        return reservationRepository.findById(event.reservationId())
                 .switchIfEmpty(Mono.error(new ReservationNotFoundException("Reservation not found: " + event.reservationId())))
                 .flatMap(this::compensateAndCancel)
                 .doOnSuccess(reservation -> publishCancellationEvent(reservation, event.reason()))
                 .doOnError(e -> log.error("Error processing payment failure", e))
-                .subscribe();
+                .then();
     }
 
     private Mono<Reservation> compensateAndCancel(Reservation reservation) {

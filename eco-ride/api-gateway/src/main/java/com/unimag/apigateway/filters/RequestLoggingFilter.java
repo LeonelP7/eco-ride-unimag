@@ -19,7 +19,7 @@ public class RequestLoggingFilter extends AbstractGatewayFilterFactory<RequestLo
     }
 
     @Override
-    public GatewayFilter apply(Config  config) {
+    public GatewayFilter apply(Config config) {
         return (exchange, chain) -> {
             long startTime = System.currentTimeMillis();
             String requestId = UUID.randomUUID().toString();

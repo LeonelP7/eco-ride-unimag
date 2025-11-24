@@ -3,10 +3,11 @@ package com.unimag.payment_service.services;
 import com.unimag.payment_service.dtos.PaymentResponseDTO;
 import com.unimag.payment_service.events.ReservationCancelledEvent;
 import com.unimag.payment_service.events.ReservationRequestedEvent;
+import reactor.core.publisher.Mono;
 
 public interface PaymentService {
 
-    PaymentResponseDTO processReservationRequested(ReservationRequestedEvent event);
+    Mono<PaymentResponseDTO> processReservationRequested(ReservationRequestedEvent event);
 
-    void processReservationCancelled(ReservationCancelledEvent event);
+    Mono<Void> processReservationCancelled(ReservationCancelledEvent event);
 }

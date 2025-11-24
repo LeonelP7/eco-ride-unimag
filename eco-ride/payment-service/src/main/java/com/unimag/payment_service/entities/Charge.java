@@ -1,10 +1,12 @@
 package com.unimag.payment_service.entities;
 
-import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
 
@@ -12,16 +14,21 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity(name = "charges")
+@Table("charges")
 public class Charge {
+
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
-    @OneToOne
-    @JoinColumn(name = "payment_intent_id")
-    private PaymentIntent paymentIntent;
+
+    @Column("payment_intent_id")
+    private String paymentIntentId; // antes PaymentIntent paymentIntent
+
     private String provider;
+
+    @Column("provider_ref")
     private String providerRef;
+
+    @Column("captured_at")
     private LocalDateTime capturedAt;
 }
 

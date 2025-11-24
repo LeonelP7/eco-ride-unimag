@@ -1,25 +1,30 @@
 package com.unimag.payment_service.entities;
 
-import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
-
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity(name = "refunds")
+@Table("refunds")
 public class Refund {
+
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
-    @OneToOne
-    @JoinColumn(name = "charge_id")
-    private Charge charge;
+
+    @Column("charge_id")
+    private String chargeId;
+
     private Double amount;
+
     private String reason;
+
+    @Column("created_at")
     private LocalDateTime createdAt;
 }
