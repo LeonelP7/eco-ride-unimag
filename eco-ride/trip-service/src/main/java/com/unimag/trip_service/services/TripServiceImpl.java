@@ -5,14 +5,13 @@ import com.unimag.trip_service.dtos.trip.ResponseTripDTO;
 import com.unimag.trip_service.entities.Trip;
 import com.unimag.trip_service.mappers.TripMapper;
 import com.unimag.trip_service.respositories.TripRepository;
-import com.unimag.trip_service.services.publisher.EventPublisherService;
-import com.unimag.trip_service.util.TripSpecifications;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -22,33 +21,33 @@ public class TripServiceImpl implements TripService {
     private final TripMapper tripMapper;
 
     @Override
-    public ResponseTripDTO saveTrip(CreateTripDTO createTripDTO, String driverId) {
+    public Mono<ResponseTripDTO> saveTrip(CreateTripDTO createTripDTO, String driverId) {
         // falta añadir en el controller @AuthenticationPrincipal(expression = "id") Long driverId una vez se añada el security
 
-        Trip createdTrip = tripMapper.createDTOToTrip(createTripDTO);
+        Trip newTrip = tripMapper.createDTOToTrip(createTripDTO);
+        newTrip.setId(UUID.randomUUID().toString());
 
-        return tripMapper.tripToResponse(tripRepository.save(createdTrip), driverId);
+        return tripRepository
+                .save(newTrip)
+                .map(savedTrip ->
+                        tripMapper.tripToResponse(savedTrip, driverId)
+                );
     }
 
     @Override
-    public List<ResponseTripDTO> getTrips() {
+    public Flux<ResponseTripDTO> getTrips() {
         return tripRepository.findAll()
-                .stream()
-                .map(t -> tripMapper.tripToResponse(t,t.getDriverId()))
-                .toList();
+                .map(t -> tripMapper.tripToResponse(t,t.getDriverId()));
     }
 
     @Override
-    public List<ResponseTripDTO> findByFilters(String origin, String destination, LocalDateTime from, LocalDateTime to) {
-        Specification<Trip> spec = Specification.allOf(
-                TripSpecifications.hasOrigin(origin),
-                TripSpecifications.hasDestination(destination),
-                TripSpecifications.startsInRange(from, to)
-        );
-
-        return tripRepository.findAll(spec)
-                .stream()
-                .map(t -> tripMapper.tripToResponse(t, t.getDriverId()))
-                .toList();
+    public Flux<ResponseTripDTO> findByFilters(String origin, String destination, LocalDateTime from, LocalDateTime to) {
+        return tripRepository.findByFilters(
+                        origin != null && !origin.isBlank() ? origin : null,
+                        destination != null && !destination.isBlank() ? destination : null,
+                        from,
+                        to
+                )
+                .map(t -> tripMapper.tripToResponse(t, t.getDriverId()));
     }
 }

@@ -1,0 +1,12 @@
+spring:
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5433/tripdb
+    username: admin
+    password: admin
+
+  flyway:
+    enabled: true
+    url: jdbc:postgresql://localhost:5433/tripdb
+    user: admin
+    password: admin
+    baseline-on-migrate: true

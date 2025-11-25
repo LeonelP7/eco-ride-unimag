@@ -1,38 +1,42 @@
 package com.unimag.trip_service.entities;
 
 import com.unimag.trip_service.enums.TripStatus;
-import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Data
 @NoArgsConstructor
 @RequiredArgsConstructor
-@Entity(name = "trips")
+@Table("trips")
 public class Trip {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private String id;
-    @Column(name = "driver_id")
+
+    @Column("driver_id")
     private String driverId;
+
     private String origin;
+
     private String destination;
-    @Column(name = "start_time")
+
+    @Column("start_time")
     private LocalDateTime startTime;
-    @Column(name = "seats_total")
+
+    @Column("seats_total")
     private int seatsTotal;
-    @Column(name = "seats_available")
+
+    @Column("seats_available")
     private int seatsAvailable;
+
     private Double price;
-    @Enumerated(EnumType.STRING)
+
+    @Column("status")
     private TripStatus status;
-    @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Reservation> reservations = new ArrayList<>();
 }

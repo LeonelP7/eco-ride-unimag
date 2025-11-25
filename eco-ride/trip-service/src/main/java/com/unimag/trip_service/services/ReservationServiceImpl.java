@@ -13,11 +13,14 @@ import com.unimag.trip_service.mappers.ReservationMapper;
 import com.unimag.trip_service.respositories.ReservationRepository;
 import com.unimag.trip_service.respositories.TripRepository;
 import com.unimag.trip_service.services.publisher.EventPublisherService;
+import com.unimag.trip_service.util.TripReservationPair;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -30,70 +33,95 @@ public class ReservationServiceImpl implements ReservationService {
     private final EventPublisherService eventPublisher;
 
     @Override
-    public ResponseReservationDTO registerReservation(CreateReservationDTO createReservationDTO) {
-        Trip trip = tripRepository.findById(createReservationDTO.tripId())
-                .orElseThrow(() -> new TripNotFoundException("Trip not found"));
+    public Mono<ResponseReservationDTO> registerReservation(CreateReservationDTO createReservationDTO) {
+        return tripRepository.findById(createReservationDTO.tripId())
+                .switchIfEmpty(Mono.error(new TripNotFoundException("Trip not found")))
+                .flatMap(trip -> validateAndPrepareReservation(trip, createReservationDTO))
+                .flatMap(this::saveReservation)
+                .doOnSuccess(this::publishReservationRequestedEvent)
+                .map(reservationMapper::reservationToResponseDTO);
+    }
 
-        if (trip.getSeatsAvailable() == 0){
-            throw new ReservationCreationException("Seats not available");
-        }else {
-            trip.setSeatsAvailable(trip.getSeatsAvailable() - 1);
+    private Mono<TripReservationPair> validateAndPrepareReservation(Trip trip, CreateReservationDTO dto) {
+        if (trip.getSeatsAvailable() == 0) {
+            return Mono.error(new ReservationCreationException("Seats not available"));
         }
 
-        Reservation reservation = reservationMapper.createReservationDTOToReservation(createReservationDTO);
+        trip.setSeatsAvailable(trip.getSeatsAvailable() - 1);
+
+        Reservation reservation = reservationMapper.createReservationDTOToReservation(dto);
         reservation.setStatus(ReservationStatus.PENDING);
-        reservation.setTrip(trip);
-        trip.getReservations().add(reservation);
-        tripRepository.save(trip);
-        reservation = reservationRepository.save(reservation);
 
-        log.info("Reservation created with status PENDING: {}", reservation.getId());
+        return Mono.just(new TripReservationPair(trip, reservation));
+    }
 
-        try {
-            eventPublisher.publishReservationRequested(new ReservationRequestedEvent(
-                    reservation.getId(),
-                    trip.getId(),
-                    reservation.getPassengerId(),
-                    trip.getPrice()
-            ));
-        } catch (Exception e) {
-            log.error("Failed to publish ReservationRequested event", e);
-            // En producción, considera guardar en outbox table para retry
-        }
+    private Mono<Reservation> saveReservation(TripReservationPair pair) {
+        Reservation reservation = pair.reservation();
 
-        return reservationMapper.reservationToResponseDTO(reservation);
+        // Asignar ID manualmente
+        reservation.setId(UUID.randomUUID().toString());
+
+        return tripRepository.save(pair.trip())
+                .then(reservationRepository.save(reservation))
+                .doOnSuccess(r -> log.info("Reservation created with status PENDING: {}", r.getId()));
+    }
+
+    private Mono<Void> publishReservationRequestedEvent(Reservation reservation) {
+        return tripRepository.findById(reservation.getTripId())
+                .switchIfEmpty(Mono.error(new TripNotFoundException("Trip not found")))
+                .flatMap(trip -> {
+                    ReservationRequestedEvent event = new ReservationRequestedEvent(
+                            reservation.getId(),
+                            reservation.getTripId(),
+                            reservation.getPassengerId(),
+                            trip.getPrice()
+                    );
+
+                    eventPublisher.publishReservationRequested(event);
+                    return Mono.<Void>empty();
+                })
+                .onErrorResume(e -> {
+                    log.error("Failed to publish ReservationRequested event", e);
+                    return Mono.empty();
+                });
     }
 
     @Override
-    public List<ResponseReservationDTO> findAll() {
+    public Flux<ResponseReservationDTO> findAll() {
         return reservationRepository.findAll()
-                .stream()
-                .map(reservationMapper::reservationToResponseDTO)
-                .toList();
+                .map(reservationMapper::reservationToResponseDTO);
     }
 
     @Override
-    public ResponseReservationDTO findById(String id) {
+    public Mono<ResponseReservationDTO> findById(String id) {
         return reservationRepository.findById(id)
                 .map(reservationMapper::reservationToResponseDTO)
-                .orElseThrow(() -> new ReservationNotFoundException("Reservation not found"));
+                .switchIfEmpty(Mono.error(new ReservationNotFoundException("Reservation not found: " + id)));
     }
 
     @Override
-    public void processPaymentAuthorized(PaymentAuthorizedEvent event){
+    public Mono<Void> processPaymentAuthorized(PaymentAuthorizedEvent event) {
         log.info("ReservationService: Processing payment authorization for reservation: {}", event.reservationId());
 
-        Reservation reservation = reservationRepository.findById(event.reservationId())
-                .orElseThrow(() -> new ReservationNotFoundException("Reservation not found: " + event.reservationId()));
+        return reservationRepository.findById(event.reservationId())
+                .switchIfEmpty(Mono.error(new ReservationNotFoundException("Reservation not found: " + event.reservationId())))
+                .flatMap(this::confirmReservation)
+                .doOnSuccess(reservation -> publishConfirmationEvent(reservation.getId(), event.email(), event.passengerName()))
+                .doOnError(e -> log.error("Error processing payment authorization", e))
+                .then();
+    }
 
+    private Mono<Reservation> confirmReservation(Reservation reservation) {
         reservation.setStatus(ReservationStatus.CONFIRMED);
-        reservationRepository.save(reservation);
 
-        log.info("Reservation confirmed: {}", reservation.getId());
+        return reservationRepository.save(reservation)
+                .doOnSuccess(r -> log.info("Reservation confirmed: {}", r.getId()));
+    }
 
+    private void publishConfirmationEvent(String reservationId, String email, String passengerName) {
         try {
             eventPublisher.publishReservationConfirmedEvent(
-                    new ReservationConfirmedEvent(reservation.getId())
+                    new ReservationConfirmedEvent(reservationId, email, passengerName)
             );
         } catch (Exception e) {
             log.error("Failed to publish ReservationConfirmed event", e);
@@ -101,27 +129,35 @@ public class ReservationServiceImpl implements ReservationService {
     }
 
     @Override
-    public void processPaymentFailed(PaymentFailedEvent event){
+    public Mono<Void> processPaymentFailed(PaymentFailedEvent event) {
         log.info("Processing payment failure for reservation: {}", event.reservationId());
 
-        Reservation reservation = reservationRepository.findById(event.reservationId())
-                .orElseThrow(() -> new ReservationNotFoundException("Reservation not found: " + event.reservationId()));
+        return reservationRepository.findById(event.reservationId())
+                .switchIfEmpty(Mono.error(new ReservationNotFoundException("Reservation not found: " + event.reservationId())))
+                .flatMap(this::compensateAndCancel)
+                .doOnSuccess(reservation -> publishCancellationEvent(reservation, event.reason()))
+                .doOnError(e -> log.error("Error processing payment failure", e))
+                .then();
+    }
 
-        // COMPENSACIÓN: Devolver el asiento al inventario
-        Trip trip = reservation.getTrip();
-        trip.setSeatsAvailable(trip.getSeatsAvailable() + 1);
-        tripRepository.save(trip);
+    private Mono<Reservation> compensateAndCancel(Reservation reservation) {
 
-        // Cancelar reservación
-        reservation.setStatus(ReservationStatus.CANCELLED);
-        reservationRepository.save(reservation);
+        return tripRepository.findById(reservation.getTripId())
+                .switchIfEmpty(Mono.error(new IllegalStateException("Trip not found")))
+                .flatMap(trip -> {
+                    trip.setSeatsAvailable(trip.getSeatsAvailable() + 1);
+                    reservation.setStatus(ReservationStatus.CANCELLED);
 
-        log.info("Reservation cancelled and seat returned. Reservation: {}, Reason: {}",
-                reservation.getId(), event.reason());
+                    return tripRepository.save(trip)
+                            .then(reservationRepository.save(reservation));
+                })
+                .doOnSuccess(r -> log.info("Reservation cancelled and seat returned: {}", r.getId()));
+    }
 
+    private void publishCancellationEvent(Reservation reservation, String reason) {
         try {
             eventPublisher.publishReservationCancelledEvent(
-                    new ReservationCancelledEvent(reservation.getId(), event.reason())
+                    new ReservationCancelledEvent(reservation.getId(), reason)
             );
         } catch (Exception e) {
             log.error("Failed to publish ReservationCancelled event", e);

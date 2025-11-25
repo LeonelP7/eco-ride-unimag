@@ -14,6 +14,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -27,29 +29,27 @@ public class TripController {
     private final ReservationService reservationService;
 
     @GetMapping
-    public ResponseEntity<List<ResponseTripDTO>> getTripsByFilters(
+    public Flux<ResponseTripDTO> getTripsByFilters(
             @RequestParam(required = false) String origin,
             @RequestParam(required = false) String destination,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
 
-        List<ResponseTripDTO> trips = tripService.findByFilters(origin, destination, from, to);
-
-        return ResponseEntity.ok(trips);
+        return tripService.findByFilters(origin, destination, from, to);
     }
 
     @PostMapping
-    public ResponseEntity<ResponseTripDTO> saveTrip(@RequestBody @Valid CreateTripDTO createTripDTO, String driverId) {
-        // falta añadir en el controller @AuthenticationPrincipal(expression = "id") Long driverId una vez se añada el security
-        ResponseTripDTO trip = tripService.saveTrip(createTripDTO, driverId);
-        return new ResponseEntity<>(trip, HttpStatus.CREATED);
+    public Mono<ResponseEntity<ResponseTripDTO>> saveTrip(@RequestBody @Valid CreateTripDTO createTripDTO, String driverId
+    ) {
+        return tripService.saveTrip(createTripDTO, driverId)
+                .map(dto -> ResponseEntity.status(HttpStatus.CREATED).body(dto));
     }
 
     // aqui hay que revisar esa pathVariable tripId
     @PostMapping("{tripId}/reservations")
-    public ResponseEntity<ResponseReservationDTO> saveReservation(@PathVariable String tripId, @RequestBody @Valid CreateReservationDTO createReservationDTO) {
-        ResponseReservationDTO responseReservationDTO = reservationService.registerReservation(createReservationDTO);
-        return ResponseEntity.ok(responseReservationDTO);
+    public Mono<ResponseEntity<ResponseReservationDTO>> saveReservation(@PathVariable String tripId, @RequestBody @Valid CreateReservationDTO createReservationDTO) {
+        return reservationService.registerReservation(createReservationDTO)
+                .map(dto -> ResponseEntity.status(HttpStatus.CREATED).body(dto));
     }
 
 }
