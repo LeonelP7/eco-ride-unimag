@@ -36,7 +36,7 @@ eureka:
     fetch-registry: true
   instance:
     prefer-ip-address: true
-    hostname: ${spring.application.name}
+    hostname: passenger-service
 
 server:
   port: 8080
