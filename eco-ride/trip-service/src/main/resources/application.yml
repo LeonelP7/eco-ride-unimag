@@ -1,29 +1,46 @@
 spring:
   application:
-    name: trip-service
+    name: passenger-service
 
+  # R2DBC (Reactivo)
   r2dbc:
-    url: r2dbc:postgresql://localhost:5433/tripdb
+    url: r2dbc:postgresql://postgres:5432/tripdb
     username: tripuser
     password: trippass
 
+  # Flyway (Migraciones con JDBC)
   flyway:
     enabled: true
-    url: jdbc:postgresql://localhost:5433/tripdb
+    url: jdbc:postgresql://postgres:5432/tripdb  # ✅ jdbc://
     user: tripuser
     password: trippass
     baseline-on-migrate: true
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://keycloak:8080/realms/eco-ride-dev
+
   rabbitmq:
-    host: localhost
+    host: rabbitmq
     port: 5672
     username: ecouser
     password: ecopass
 
-server:
-  port: 8085
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    hostname: trip-service
 
-# OpenAPI Documentation
+server:
+  port: 8080
+
 springdoc:
   api-docs:
     path: /api-docs
@@ -34,11 +51,6 @@ springdoc:
 
 logging:
   level:
-    com.unimag.trip_service: DEBUG
+    com.unimag.passenger_service: DEBUG
     org.springframework.web: INFO
-eureka:
-  client:
-    service-url:
-      defaultZone: http://eureka-server:8761/eureka/
-    register-with-eureka: true
-    fetch-registry: true
+    org.springframework.r2dbc: DEBUG

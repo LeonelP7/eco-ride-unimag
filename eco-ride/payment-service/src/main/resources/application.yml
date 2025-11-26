@@ -21,7 +21,7 @@ spring:
       password: ecopass
 
 server:
-  port: 8083
+  port: 8080
 
 logging:
   level:
@@ -36,4 +36,4 @@ eureka:
     fetch-registry: true
   instance:
     prefer-ip-address: true
-    instance-id: ${spring.application.name}:${random.value}
+    instance-id: passenger-service:${random.value}

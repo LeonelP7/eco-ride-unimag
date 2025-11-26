@@ -29,7 +29,6 @@ LABEL service="trip-service"
 
 # Configuración de usuario (la que ya tenías)
 RUN addgroup -S spring && adduser -S spring -G spring
-USER spring:spring
 
 WORKDIR /app
 
@@ -38,37 +37,20 @@ WORKDIR /app
 # Asume que el JAR final está en /app/target/app.jar (o similar, verifica el nombre)
 COPY --from=builder /app/target/*.jar app.jar
 
-EXPOSE 8085
+EXPOSE 8080
 
 ENV JAVA_OPTS=""
 
-# Añade curl para el HEALTHCHECK (como se discutió anteriormente)
-RUN apk update && apk add curl
+# Instala curl como root (apk requiere permisos de root)
+RUN apk update && apk add --no-cache curl
+
+# Asegura que el JAR pertenece al usuario no root
+RUN chown spring:spring app.jar
+
+# Cambia a usuario no root para ejecución
+USER spring:spring
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD curl --fail http://localhost:8085/actuator/health || exit 1
+  CMD curl --fail http://localhost:8080/actuator/health || exit 1
 
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
-
-
-
-#FROM eclipse-temurin:21-jre-alpine
-#
-#LABEL maintainer="LeonelP7"
-#LABEL service="trip-service"
-#
-#RUN addgroup -S spring && adduser -S spring -G spring
-#USER spring:spring
-#
-#WORKDIR /app
-#
-#COPY target/*.jar app.jar
-#
-#EXPOSE 8085
-#
-#ENV JAVA_OPTS=""
-#
-#HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-#  CMD wget --no-verbose --tries=1 --spider http://localhost:8085/actuator/health || exit 1
-#
-#ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
