@@ -3,22 +3,29 @@ package com.unimag.passenger_service.services;
 import com.unimag.passenger_service.dtos.passenger.CreatePassengerDTO;
 import com.unimag.passenger_service.dtos.passenger.ResponsePassengerDTO;
 import com.unimag.passenger_service.dtos.passenger.UpdatePassengerDTO;
-
-import java.util.List;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 public interface PassengerService {
 
-    ResponsePassengerDTO createPassenger(CreatePassengerDTO dto);
+    // ✅ Crear pasajero (retorna Mono)
+    Mono<ResponsePassengerDTO> createPassenger(CreatePassengerDTO dto);
 
-    ResponsePassengerDTO getPassengerById(String id);
+    // ✅ Obtener por ID
+    Mono<ResponsePassengerDTO> getPassengerById(String id);
 
-    ResponsePassengerDTO getPassengerByKeycloakSub(String keycloakSub);
+    // ✅ Obtener por email
+    Mono<ResponsePassengerDTO> getPassengerByEmail(String email);
 
-    ResponsePassengerDTO getPassengerByEmail(String email);
+    // ✅ Obtener por keycloakSub
+    Mono<ResponsePassengerDTO> getPassengerByKeycloakSub(String keycloakSub);
 
-    List<ResponsePassengerDTO> getAllPassengers();
+    // ✅ Obtener todos (retorna Flux)
+    Flux<ResponsePassengerDTO> getAllPassengers();
 
-    ResponsePassengerDTO updatePassenger(String id, UpdatePassengerDTO dto);
+    // ✅ Actualizar
+    Mono<ResponsePassengerDTO> updatePassenger(String id, UpdatePassengerDTO dto);
 
-    void deletePassenger(String id);
+    // ✅ Eliminar (retorna Mono<Void>)
+    Mono<Void> deletePassenger(String id);
 }

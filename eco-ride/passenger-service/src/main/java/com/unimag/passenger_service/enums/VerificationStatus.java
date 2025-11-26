@@ -1,4 +1,4 @@
-package com.unimag.passenger_service.entities;
+package com.unimag.passenger_service.enums;
 
 public enum VerificationStatus {
     PENDING,

@@ -2,20 +2,21 @@ package com.unimag.passenger_service.services;
 
 import com.unimag.passenger_service.dtos.rating.CreateRatingDTO;
 import com.unimag.passenger_service.dtos.rating.ResponseRatingDTO;
-import com.unimag.passenger_service.entities.Passenger;
 import com.unimag.passenger_service.entities.Rating;
+import com.unimag.passenger_service.events.PassengerRatedEvent;
 import com.unimag.passenger_service.exceptions.notfound.PassengerNotFoundException;
 import com.unimag.passenger_service.exceptions.notfound.RatingNotFoundException;
 import com.unimag.passenger_service.mappers.RatingMapper;
 import com.unimag.passenger_service.repositories.PassengerRepository;
 import com.unimag.passenger_service.repositories.RatingRepository;
+import com.unimag.passenger_service.services.publisher.EventPublisherService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import java.util.List;
-import java.util.stream.Collectors;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -25,102 +26,87 @@ public class RatingServiceImpl implements RatingService {
     private final RatingRepository ratingRepository;
     private final PassengerRepository passengerRepository;
     private final RatingMapper ratingMapper;
+    private final EventPublisherService eventPublisher;
 
     @Override
-    @Transactional
-    public ResponseRatingDTO createRating(CreateRatingDTO dto) {
-        log.info("Creating rating for trip: {}", dto.tripId());
+    public Mono<ResponseRatingDTO> createRating(CreateRatingDTO dto) {
+        return passengerRepository.existsById(dto.fromPassengerId())
+                .flatMap(fromExists -> {
+                    if (!fromExists) {
+                        return Mono.error(new PassengerNotFoundException(
+                                "Passenger not found with id: " + dto.fromPassengerId()));
+                    }
 
-        // Buscar pasajeros
-        Passenger fromPassenger = passengerRepository.findById(dto.fromPassengerId())
-                .orElseThrow(() -> new PassengerNotFoundException("From passenger not found with ID: " + dto.fromPassengerId()));
+                    return passengerRepository.existsById(dto.toPassengerId())
+                            .flatMap(toExists -> {
+                                if (!toExists) {
+                                    return Mono.error(new PassengerNotFoundException(
+                                            "Passenger not found with id: " + dto.toPassengerId()));
+                                }
 
-        Passenger toPassenger = passengerRepository.findById(dto.toPassengerId())
-                .orElseThrow(() -> new PassengerNotFoundException("To passenger not found with ID: " + dto.toPassengerId()));
+                                Rating rating = ratingMapper.toEntity(dto);
+                                rating.setId(UUID.randomUUID().toString());
 
-        Rating rating = ratingMapper.toEntity(dto);
-        rating.setFromPassenger(fromPassenger);
-        rating.setToPassenger(toPassenger);
+                                return ratingRepository.save(rating)
+                                        .flatMap(savedRating -> updatePassengerRating(dto.toPassengerId())
+                                                .thenReturn(savedRating))
+                                        .map(ratingMapper::toResponseDTO)
+                                        .doOnSuccess(r -> log.info("Rating created: {}", r.id()));
+                            });
+                });
+    }
 
-        Rating savedRating = ratingRepository.save(rating);
-
-        // Actualizar rating promedio del pasajero calificado
-        updatePassengerAverageRating(toPassenger);
-
-        log.info("Rating created successfully with ID: {}", savedRating.getId());
-        return ratingMapper.toResponseDTO(savedRating);
+    private Mono<Void> updatePassengerRating(String passengerId) {
+        return ratingRepository.calculateAverageRatingForPassenger(passengerId)
+                .flatMap(avgRating -> passengerRepository.findById(passengerId)
+                        .flatMap(passenger -> {
+                            passenger.setRatingAvg(avgRating != null ? avgRating : 0.0);
+                            return passengerRepository.save(passenger)
+                                    .doOnSuccess(savedPassenger -> {
+                                        // Publicar evento después de actualizar el rating
+                                        eventPublisher.publishPassengerRated(
+                                                new PassengerRatedEvent(
+                                                        savedPassenger.getId(),
+                                                        savedPassenger.getRatingAvg(),
+                                                        null // totalRatings - puede implementarse después
+                                                )
+                                        );
+                                        log.info("Published PassengerRated event for passenger: {} with new rating: {}",
+                                                savedPassenger.getId(), savedPassenger.getRatingAvg());
+                                    })
+                                    .then();
+                        }));
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public ResponseRatingDTO getRatingById(String id) {
-        log.info("Fetching rating with ID: {}", id);
-
-        Rating rating = ratingRepository.findById(id)
-                .orElseThrow(() -> new RatingNotFoundException("Rating not found with ID: " + id));
-
-        return ratingMapper.toResponseDTO(rating);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<ResponseRatingDTO> getRatingsByPassengerId(String passengerId) {
-        log.info("Fetching ratings for passenger ID: {}", passengerId);
-
-        Passenger passenger = passengerRepository.findById(passengerId)
-                .orElseThrow(() -> new PassengerNotFoundException("Passenger not found with ID: " + passengerId));
-
-        return ratingRepository.findByToPassenger(passenger).stream()
+    public Mono<ResponseRatingDTO> getRatingById(String id) {
+        return ratingRepository.findById(id)
                 .map(ratingMapper::toResponseDTO)
-                .collect(Collectors.toList());
+                .switchIfEmpty(Mono.error(new RatingNotFoundException(
+                        "Rating not found with id: " + id)));
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public List<ResponseRatingDTO> getRatingsByTripId(String tripId) {
-        log.info("Fetching ratings for trip ID: {}", tripId);
-
-        return ratingRepository.findByTripId(tripId).stream()
-                .map(ratingMapper::toResponseDTO)
-                .collect(Collectors.toList());
+    public Flux<ResponseRatingDTO> getRatingsByFromId(String fromId) {
+        return ratingRepository.findByFromId(fromId)
+                .map(ratingMapper::toResponseDTO);
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public List<ResponseRatingDTO> getAllRatings() {
-        log.info("Fetching all ratings");
-
-        return ratingRepository.findAll().stream()
-                .map(ratingMapper::toResponseDTO)
-                .collect(Collectors.toList());
+    public Flux<ResponseRatingDTO> getRatingsByToId(String toId) {
+        return ratingRepository.findByToId(toId)
+                .map(ratingMapper::toResponseDTO);
     }
 
     @Override
-    @Transactional
-    public void deleteRating(String id) {
-        log.info("Deleting rating with ID: {}", id);
-
-        Rating rating = ratingRepository.findById(id)
-                .orElseThrow(() -> new RatingNotFoundException("Rating not found with ID: " + id));
-
-        Passenger toPassenger = rating.getToPassenger();
-
-        ratingRepository.deleteById(id);
-
-        // Recalcular rating promedio
-        updatePassengerAverageRating(toPassenger);
-
-        log.info("Rating deleted successfully with ID: {}", id);
+    public Flux<ResponseRatingDTO> getRatingsByTripId(String tripId) {
+        return ratingRepository.findByTripId(tripId)
+                .map(ratingMapper::toResponseDTO);
     }
 
-    private void updatePassengerAverageRating(Passenger passenger) {
-        Double averageRating = ratingRepository.calculateAverageRatingForPassenger(passenger);
-        List<Rating> ratings = ratingRepository.findByToPassenger(passenger);
-
-        passenger.setRatingAvg(averageRating != null ? averageRating : 0.0);
-        passenger.setTotalRatings(ratings.size());
-
-        passengerRepository.save(passenger);
-        log.info("Updated average rating for passenger ID: {} to {}", passenger.getId(), passenger.getRatingAvg());
+    @Override
+    public Flux<ResponseRatingDTO> getAllRatings() {
+        return ratingRepository.findAll()
+                .map(ratingMapper::toResponseDTO);
     }
 }

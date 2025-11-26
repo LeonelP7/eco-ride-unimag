@@ -3,23 +3,23 @@ package com.unimag.passenger_service.services;
 import com.unimag.passenger_service.dtos.driver.CreateDriverProfileDTO;
 import com.unimag.passenger_service.dtos.driver.ResponseDriverProfileDTO;
 import com.unimag.passenger_service.dtos.driver.UpdateDriverProfileDTO;
-import com.unimag.passenger_service.entities.VerificationStatus;
-
-import java.util.List;
+import com.unimag.passenger_service.enums.VerificationStatus;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 public interface DriverProfileService {
 
-    ResponseDriverProfileDTO createDriverProfile(CreateDriverProfileDTO dto);
+    Mono<ResponseDriverProfileDTO> createDriverProfile(CreateDriverProfileDTO dto);
 
-    ResponseDriverProfileDTO getDriverProfileById(String id);
+    Mono<ResponseDriverProfileDTO> getDriverProfileById(String id);
 
-    ResponseDriverProfileDTO getDriverProfileByPassengerId(String passengerId);
+    Mono<ResponseDriverProfileDTO> getDriverProfileByPassengerId(String passengerId);
 
-    List<ResponseDriverProfileDTO> getAllDriverProfiles();
+    Flux<ResponseDriverProfileDTO> getAllDriverProfiles();
 
-    ResponseDriverProfileDTO updateDriverProfile(String id, UpdateDriverProfileDTO dto);
+    Mono<ResponseDriverProfileDTO> updateDriverProfile(String id, UpdateDriverProfileDTO dto);
 
-    ResponseDriverProfileDTO updateVerificationStatus(String id, VerificationStatus status);
+    Mono<ResponseDriverProfileDTO> updateVerificationStatus(String id, VerificationStatus status);
 
-    void deleteDriverProfile(String id);
+    Mono<Void> deleteDriverProfile(String id);
 }

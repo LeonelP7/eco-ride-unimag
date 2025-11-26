@@ -1,19 +1,17 @@
 package com.unimag.passenger_service.repositories;
 
 import com.unimag.passenger_service.entities.Passenger;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.r2dbc.repository.R2dbcRepository;
+import reactor.core.publisher.Mono;
 
-import java.util.Optional;
+public interface PassengerRepository extends R2dbcRepository<Passenger, String> {
 
-@Repository
-public interface PassengerRepository extends JpaRepository<Passenger, String> {
+    // ✅ Buscar por email (retorna Mono)
+    Mono<Passenger> findByEmail(String email);
 
-    Optional<Passenger> findByKeycloakSub(String keycloakSub);
+    // ✅ Buscar por keycloakSub (retorna Mono)
+    Mono<Passenger> findByKeycloakSub(String keycloakSub);
 
-    Optional<Passenger> findByEmail(String email);
-
-    boolean existsByEmail(String email);
-
-    boolean existsByKeycloakSub(String keycloakSub);
+    // ✅ Verificar si existe por email (retorna Mono<Boolean>)
+    Mono<Boolean> existsByEmail(String email);
 }

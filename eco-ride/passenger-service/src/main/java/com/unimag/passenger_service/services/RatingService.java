@@ -2,20 +2,20 @@ package com.unimag.passenger_service.services;
 
 import com.unimag.passenger_service.dtos.rating.CreateRatingDTO;
 import com.unimag.passenger_service.dtos.rating.ResponseRatingDTO;
-
-import java.util.List;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 public interface RatingService {
 
-    ResponseRatingDTO createRating(CreateRatingDTO dto);
+    Mono<ResponseRatingDTO> createRating(CreateRatingDTO dto);
 
-    ResponseRatingDTO getRatingById(String id);
+    Mono<ResponseRatingDTO> getRatingById(String id);
 
-    List<ResponseRatingDTO> getRatingsByPassengerId(String passengerId);
+    Flux<ResponseRatingDTO> getRatingsByFromId(String fromId);
 
-    List<ResponseRatingDTO> getRatingsByTripId(String tripId);
+    Flux<ResponseRatingDTO> getRatingsByToId(String toId);
 
-    List<ResponseRatingDTO> getAllRatings();
+    Flux<ResponseRatingDTO> getRatingsByTripId(String tripId);
 
-    void deleteRating(String id);
+    Flux<ResponseRatingDTO> getAllRatings();
 }

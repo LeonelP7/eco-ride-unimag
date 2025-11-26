@@ -5,18 +5,21 @@ import com.unimag.passenger_service.dtos.passenger.ResponsePassengerDTO;
 import com.unimag.passenger_service.dtos.passenger.UpdatePassengerDTO;
 import com.unimag.passenger_service.entities.Passenger;
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
-import org.mapstruct.NullValuePropertyMappingStrategy;
 
-@Mapper(
-        componentModel = "spring",
-        nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE
-)
+@Mapper(componentModel = "spring")
 public interface PassengerMapper {
 
-    Passenger toEntity(CreatePassengerDTO dto);
+    // ✅ CreateDTO → Entity
+    Passenger toEntity(CreatePassengerDTO createPassengerDTO);
 
+    // ✅ Entity → ResponseDTO
     ResponsePassengerDTO toResponseDTO(Passenger passenger);
 
-    void updateEntityFromDTO(UpdatePassengerDTO dto, @MappingTarget Passenger passenger);
+    // ✅ UpdateDTO → Entity (para actualizar)
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "keycloakSub", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    void updateEntityFromDTO(UpdatePassengerDTO updatePassengerDTO, @MappingTarget Passenger passenger);
 }

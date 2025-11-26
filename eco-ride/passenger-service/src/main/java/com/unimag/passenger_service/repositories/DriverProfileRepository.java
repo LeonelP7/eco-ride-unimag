@@ -1,20 +1,14 @@
 package com.unimag.passenger_service.repositories;
 
 import com.unimag.passenger_service.entities.DriverProfile;
-import com.unimag.passenger_service.entities.Passenger;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.r2dbc.repository.R2dbcRepository;
+import reactor.core.publisher.Mono;
 
-import java.util.Optional;
+public interface DriverProfileRepository extends R2dbcRepository<DriverProfile, String> {
 
-@Repository
-public interface DriverProfileRepository extends JpaRepository<DriverProfile, String> {
+    // ✅ Buscar por passengerId (retorna Mono)
+    Mono<DriverProfile> findByPassengerId(String passengerId);
 
-    Optional<DriverProfile> findByPassenger(Passenger passenger);
-
-    Optional<DriverProfile> findByLicenseNo(String licenseNo);
-
-    boolean existsByLicenseNo(String licenseNo);
-
-    boolean existsByPassenger(Passenger passenger);
+    // ✅ Verificar si existe por passengerId
+    Mono<Boolean> existsByPassengerId(String passengerId);
 }

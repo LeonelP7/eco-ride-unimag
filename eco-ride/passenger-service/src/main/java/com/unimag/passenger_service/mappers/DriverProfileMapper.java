@@ -7,20 +7,18 @@ import com.unimag.passenger_service.entities.DriverProfile;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
-import org.mapstruct.NullValuePropertyMappingStrategy;
 
-@Mapper(
-        componentModel = "spring",
-        nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE
-)
+@Mapper(componentModel = "spring")
 public interface DriverProfileMapper {
 
-    @Mapping(target = "passenger", ignore = true)
-    DriverProfile toEntity(CreateDriverProfileDTO dto);
+    // ✅ CreateDTO → Entity
+    DriverProfile toEntity(CreateDriverProfileDTO createDriverProfileDTO);
 
-    @Mapping(source = "passenger.id", target = "passengerId")
-    @Mapping(source = "passenger.name", target = "passengerName")
+    // ✅ Entity → ResponseDTO
     ResponseDriverProfileDTO toResponseDTO(DriverProfile driverProfile);
 
-    void updateEntityFromDTO(UpdateDriverProfileDTO dto, @MappingTarget DriverProfile driverProfile);
+    // ✅ UpdateDTO → Entity (para actualizar)
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "passengerId", ignore = true)
+    void updateEntityFromDTO(UpdateDriverProfileDTO updateDriverProfileDTO, @MappingTarget DriverProfile driverProfile);
 }

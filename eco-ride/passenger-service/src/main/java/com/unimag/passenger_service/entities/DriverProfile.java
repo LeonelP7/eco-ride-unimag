@@ -1,62 +1,34 @@
 package com.unimag.passenger_service.entities;
 
-import jakarta.persistence.*;
+import com.unimag.passenger_service.enums.VerificationStatus;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
-@Table(name = "driver_profiles")
+@Table("driver_profiles")
 public class DriverProfile {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    @OneToOne
-    @JoinColumn(name = "passenger_id", nullable = false, unique = true)
-    private Passenger passenger;
+    @Column("passenger_id")
+    private String passengerId;
 
-    @Column(name = "license_no", unique = true, nullable = false)
+    @Column("license_no")
     private String licenseNo;
 
-    @Column(name = "car_plate", nullable = false)
+    @Column("car_plate")
     private String carPlate;
 
-    @Column(name = "car_model")
-    private String carModel;
+    @Column("seats_offered")
+    private Integer seatsOffered;
 
-    @Column(name = "car_color")
-    private String carColor;
-
-    @Column(name = "seats_offered", nullable = false)
-    private Integer seatsOffered = 4;
-
-    @Column(name = "verification_status", nullable = false)
-    @Enumerated(EnumType.STRING)
-    private VerificationStatus verificationStatus = VerificationStatus.PENDING;
-
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
+    @Column("verification_status")
+    private VerificationStatus verificationStatus;
 }
