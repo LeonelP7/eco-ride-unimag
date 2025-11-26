@@ -1,0 +1,10 @@
+[33m582cec4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/passenger-service-meikellBranch[m[33m, [m[1;31morigin/feature/passenger-service-meikellBranch[m[33m)[m add EventPublisherService and RabbitConfig
+[33m2381672[m PassengerService its now reactive :D
+[33m429a669[m feat: add services layer for passenger, driver and rating
+[33m6fe32be[m feat: add MapStruct dependencies to passenger-service
+[33mb69baa3[m feat: add repositories and DTOs for passenger service
+[33mdc7bacd[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;31morigin/Feature-Saxyz[m[33m, [m[1;32mmain[m[33m)[m Merge pull request #2
+[33mdcf74bc[m[33m ([m[1;31morigin/Feature-Leonel[m[33m, [m[1;32mFeature-Leonel[m[33m)[m adding api-gateway module
+[33m2351e08[m Merge pull request #1 from LeonelP7/Feature-Leonel
+[33mdaf8ac6[m I think i finished SAGA pattern :/
+[33m69b9dd9[m Keep working on the SAGA pattern, did some progress on the payment side
