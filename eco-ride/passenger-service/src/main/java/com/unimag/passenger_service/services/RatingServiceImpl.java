@@ -3,11 +3,13 @@ package com.unimag.passenger_service.services;
 import com.unimag.passenger_service.dtos.rating.CreateRatingDTO;
 import com.unimag.passenger_service.dtos.rating.ResponseRatingDTO;
 import com.unimag.passenger_service.entities.Rating;
+import com.unimag.passenger_service.events.PassengerRatedEvent;
 import com.unimag.passenger_service.exceptions.notfound.PassengerNotFoundException;
 import com.unimag.passenger_service.exceptions.notfound.RatingNotFoundException;
 import com.unimag.passenger_service.mappers.RatingMapper;
 import com.unimag.passenger_service.repositories.PassengerRepository;
 import com.unimag.passenger_service.repositories.RatingRepository;
+import com.unimag.passenger_service.services.publisher.EventPublisherService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,7 @@ public class RatingServiceImpl implements RatingService {
     private final RatingRepository ratingRepository;
     private final PassengerRepository passengerRepository;
     private final RatingMapper ratingMapper;
+    private final EventPublisherService eventPublisher;
 
     @Override
     public Mono<ResponseRatingDTO> createRating(CreateRatingDTO dto) {
@@ -58,7 +61,20 @@ public class RatingServiceImpl implements RatingService {
                 .flatMap(avgRating -> passengerRepository.findById(passengerId)
                         .flatMap(passenger -> {
                             passenger.setRatingAvg(avgRating != null ? avgRating : 0.0);
-                            return passengerRepository.save(passenger).then();
+                            return passengerRepository.save(passenger)
+                                    .doOnSuccess(savedPassenger -> {
+                                        // Publicar evento después de actualizar el rating
+                                        eventPublisher.publishPassengerRated(
+                                                new PassengerRatedEvent(
+                                                        savedPassenger.getId(),
+                                                        savedPassenger.getRatingAvg(),
+                                                        null // totalRatings - puede implementarse después
+                                                )
+                                        );
+                                        log.info("Published PassengerRated event for passenger: {} with new rating: {}",
+                                                savedPassenger.getId(), savedPassenger.getRatingAvg());
+                                    })
+                                    .then();
                         }));
     }
 

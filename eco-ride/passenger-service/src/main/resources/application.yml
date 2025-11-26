@@ -2,16 +2,23 @@ spring:
   application:
     name: passenger-service
 
-  #  Configuración R2DBC (Reactivo)
+  # Configuración R2DBC (Reactivo)
   r2dbc:
     url: r2dbc:postgresql://localhost:5432/passengerdb
     username: admin
     password: admin
 
-  #  Configuración Flyway (Migraciones - usa JDBC)
+  # Configuración Flyway (Migraciones - usa JDBC)
   flyway:
     enabled: true
     url: jdbc:postgresql://localhost:5432/passengerdb
     user: admin
     password: admin
     baseline-on-migrate: true
+
+  # Configuración RabbitMQ
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
