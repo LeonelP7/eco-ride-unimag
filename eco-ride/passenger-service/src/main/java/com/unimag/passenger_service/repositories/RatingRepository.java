@@ -1,23 +1,24 @@
 package com.unimag.passenger_service.repositories;
 
-import com.unimag.passenger_service.entities.Passenger;
 import com.unimag.passenger_service.entities.Rating;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.r2dbc.repository.Query;
+import org.springframework.data.r2dbc.repository.R2dbcRepository;
 import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import java.util.List;
+public interface RatingRepository extends R2dbcRepository<Rating, String> {
 
-@Repository
-public interface RatingRepository extends JpaRepository<Rating, String> {
+    // ✅ Buscar calificaciones dadas POR un pasajero
+    Flux<Rating> findByFromId(String fromId);
 
-    List<Rating> findByToPassenger(Passenger passenger);
+    // ✅ Buscar calificaciones recibidas POR un pasajero
+    Flux<Rating> findByToId(String toId);
 
-    List<Rating> findByFromPassenger(Passenger passenger);
+    // ✅ Buscar por tripId
+    Flux<Rating> findByTripId(String tripId);
 
-    List<Rating> findByTripId(String tripId);
-
-    @Query("SELECT AVG(r.score) FROM ratings r WHERE r.toPassenger = :passenger")
-    Double calculateAverageRatingForPassenger(@Param("passenger") Passenger passenger);
+    // ✅ Calcular promedio de calificaciones de un pasajero (query manual)
+    @Query("SELECT AVG(score) FROM ratings WHERE to_id = :passengerId")
+    Mono<Double> calculateAverageRatingForPassenger(@Param("passengerId") String passengerId);
 }

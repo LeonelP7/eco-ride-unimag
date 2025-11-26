@@ -11,10 +11,11 @@ import com.unimag.passenger_service.repositories.PassengerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import java.util.List;
-import java.util.stream.Collectors;
+import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -25,102 +26,80 @@ public class PassengerServiceImpl implements PassengerService {
     private final PassengerMapper passengerMapper;
 
     @Override
-    @Transactional
-    public ResponsePassengerDTO createPassenger(CreatePassengerDTO dto) {
-        log.info("Creating passenger with email: {}", dto.email());
+    public Mono<ResponsePassengerDTO> createPassenger(CreatePassengerDTO dto) {
+        // ✅ 1. Verificar si ya existe
+        return passengerRepository.existsByEmail(dto.email())
+                .flatMap(exists -> {
+                    if (exists) {
+                        return Mono.error(new PassengerAlreadyExistsException(
+                                "Passenger with email " + dto.email() + " already exists"));
+                    }
 
-        // Validar que no exista por email
-        if (passengerRepository.existsByEmail(dto.email())) {
-            throw new PassengerAlreadyExistsException("Passenger with email " + dto.email() + " already exists");
-        }
+                    // ✅ 2. Crear la entidad
+                    Passenger passenger = passengerMapper.toEntity(dto);
+                    passenger.setId(UUID.randomUUID().toString());
+                    passenger.setCreatedAt(LocalDateTime.now());
+                    passenger.setRatingAvg(0.0);
 
-        // Validar que no exista por keycloakSub
-        if (passengerRepository.existsByKeycloakSub(dto.keycloakSub())) {
-            throw new PassengerAlreadyExistsException("Passenger with Keycloak sub " + dto.keycloakSub() + " already exists");
-        }
-
-        Passenger passenger = passengerMapper.toEntity(dto);
-        Passenger savedPassenger = passengerRepository.save(passenger);
-
-        log.info("Passenger created successfully with ID: {}", savedPassenger.getId());
-        return passengerMapper.toResponseDTO(savedPassenger);
+                    // ✅ 3. Guardar y mapear a DTO
+                    return passengerRepository.save(passenger)
+                            .map(passengerMapper::toResponseDTO)
+                            .doOnSuccess(p -> log.info("Passenger created: {}", p.id()));
+                });
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public ResponsePassengerDTO getPassengerById(String id) {
-        log.info("Fetching passenger with ID: {}", id);
-
-        Passenger passenger = passengerRepository.findById(id)
-                .orElseThrow(() -> new PassengerNotFoundException("Passenger not found with ID: " + id));
-
-        return passengerMapper.toResponseDTO(passenger);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public ResponsePassengerDTO getPassengerByKeycloakSub(String keycloakSub) {
-        log.info("Fetching passenger with Keycloak sub: {}", keycloakSub);
-
-        Passenger passenger = passengerRepository.findByKeycloakSub(keycloakSub)
-                .orElseThrow(() -> new PassengerNotFoundException("Passenger not found with Keycloak sub: " + keycloakSub));
-
-        return passengerMapper.toResponseDTO(passenger);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public ResponsePassengerDTO getPassengerByEmail(String email) {
-        log.info("Fetching passenger with email: {}", email);
-
-        Passenger passenger = passengerRepository.findByEmail(email)
-                .orElseThrow(() -> new PassengerNotFoundException("Passenger not found with email: " + email));
-
-        return passengerMapper.toResponseDTO(passenger);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<ResponsePassengerDTO> getAllPassengers() {
-        log.info("Fetching all passengers");
-
-        return passengerRepository.findAll().stream()
+    public Mono<ResponsePassengerDTO> getPassengerById(String id) {
+        return passengerRepository.findById(id)
                 .map(passengerMapper::toResponseDTO)
-                .collect(Collectors.toList());
+                .switchIfEmpty(Mono.error(new PassengerNotFoundException(
+                        "Passenger not found with id: " + id)));
     }
 
     @Override
-    @Transactional
-    public ResponsePassengerDTO updatePassenger(String id, UpdatePassengerDTO dto) {
-        log.info("Updating passenger with ID: {}", id);
-
-        Passenger passenger = passengerRepository.findById(id)
-                .orElseThrow(() -> new PassengerNotFoundException("Passenger not found with ID: " + id));
-
-        // Validar email único si se está cambiando
-        if (dto.email() != null && !dto.email().equals(passenger.getEmail())) {
-            if (passengerRepository.existsByEmail(dto.email())) {
-                throw new PassengerAlreadyExistsException("Email " + dto.email() + " is already in use");
-            }
-        }
-
-        passengerMapper.updateEntityFromDTO(dto, passenger);
-        Passenger updatedPassenger = passengerRepository.save(passenger);
-
-        log.info("Passenger updated successfully with ID: {}", updatedPassenger.getId());
-        return passengerMapper.toResponseDTO(updatedPassenger);
+    public Mono<ResponsePassengerDTO> getPassengerByEmail(String email) {
+        return passengerRepository.findByEmail(email)
+                .map(passengerMapper::toResponseDTO)
+                .switchIfEmpty(Mono.error(new PassengerNotFoundException(
+                        "Passenger not found with email: " + email)));
     }
 
     @Override
-    @Transactional
-    public void deletePassenger(String id) {
-        log.info("Deleting passenger with ID: {}", id);
+    public Mono<ResponsePassengerDTO> getPassengerByKeycloakSub(String keycloakSub) {
+        return passengerRepository.findByKeycloakSub(keycloakSub)
+                .map(passengerMapper::toResponseDTO)
+                .switchIfEmpty(Mono.error(new PassengerNotFoundException(
+                        "Passenger not found with keycloakSub: " + keycloakSub)));
+    }
 
-        if (!passengerRepository.existsById(id)) {
-            throw new PassengerNotFoundException("Passenger not found with ID: " + id);
-        }
+    @Override
+    public Flux<ResponsePassengerDTO> getAllPassengers() {
+        return passengerRepository.findAll()
+                .map(passengerMapper::toResponseDTO);
+    }
 
-        passengerRepository.deleteById(id);
-        log.info("Passenger deleted successfully with ID: {}", id);
+    @Override
+    public Mono<ResponsePassengerDTO> updatePassenger(String id, UpdatePassengerDTO dto) {
+        return passengerRepository.findById(id)
+                .switchIfEmpty(Mono.error(new PassengerNotFoundException(
+                        "Passenger not found with id: " + id)))
+                .flatMap(passenger -> {
+                    // ✅ Actualizar campos
+                    passengerMapper.updateEntityFromDTO(dto, passenger);
+
+                    // ✅ Guardar y retornar
+                    return passengerRepository.save(passenger)
+                            .map(passengerMapper::toResponseDTO)
+                            .doOnSuccess(p -> log.info("Passenger updated: {}", p.id()));
+                });
+    }
+
+    @Override
+    public Mono<Void> deletePassenger(String id) {
+        return passengerRepository.findById(id)
+                .switchIfEmpty(Mono.error(new PassengerNotFoundException(
+                        "Passenger not found with id: " + id)))
+                .flatMap(passenger -> passengerRepository.delete(passenger)
+                        .doOnSuccess(v -> log.info("Passenger deleted: {}", id)));
     }
 }

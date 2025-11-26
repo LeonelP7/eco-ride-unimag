@@ -9,11 +9,11 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface RatingMapper {
 
-    @Mapping(target = "fromPassenger", ignore = true)
-    @Mapping(target = "toPassenger", ignore = true)
-    Rating toEntity(CreateRatingDTO dto);
+    @Mapping(source = "fromPassengerId", target = "fromId")
+    @Mapping(source = "toPassengerId", target = "toId")
+    Rating toEntity(CreateRatingDTO createRatingDTO);
 
-    @Mapping(source = "fromPassenger.name", target = "fromPassengerName")
-    @Mapping(source = "toPassenger.name", target = "toPassengerName")
+    @Mapping(source = "fromId", target = "fromPassengerId")
+    @Mapping(source = "toId", target = "toPassengerId")
     ResponseRatingDTO toResponseDTO(Rating rating);
 }

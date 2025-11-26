@@ -1,57 +1,33 @@
 package com.unimag.passenger_service.entities;
 
-import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
 
 @Data
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
-@Table(name = "passengers")
+@Table("passengers")
 public class Passenger {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    @Column(name = "keycloak_sub", unique = true, nullable = false)
+    @Column("keycloak_sub")
     private String keycloakSub;
 
-    @Column(nullable = false)
     private String name;
 
-    @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(name = "phone_number")
-    private String phoneNumber;
+    @Column("rating_avg")
+    private Double ratingAvg;
 
-    @Column(name = "rating_avg")
-    private Double ratingAvg = 0.0;
-
-    @Column(name = "total_ratings")
-    private Integer totalRatings = 0;
-
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column("created_at")
     private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
 }

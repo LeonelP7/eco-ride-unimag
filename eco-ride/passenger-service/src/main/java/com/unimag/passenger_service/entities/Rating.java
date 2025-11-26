@@ -1,47 +1,31 @@
 package com.unimag.passenger_service.entities;
 
-import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 
 @Data
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
-@Table(name = "ratings")
+@Table("ratings")
 public class Rating {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    @Column(name = "trip_id", nullable = false)
+    @Column("trip_id")
     private String tripId;
 
-    @ManyToOne
-    @JoinColumn(name = "from_passenger_id", nullable = false)
-    private Passenger fromPassenger;
+    @Column("from_id")
+    private String fromId;  // ← ID del que califica (Passenger)
 
-    @ManyToOne
-    @JoinColumn(name = "to_passenger_id", nullable = false)
-    private Passenger toPassenger;
+    @Column("to_id")
+    private String toId;    // ← ID del calificado (Passenger)
 
-    @Column(nullable = false)
     private Integer score;
 
-    @Column(length = 500)
     private String comment;
-
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-    }
 }
