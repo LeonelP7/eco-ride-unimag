@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: payment-service
+
+    r2dbc:
+      url: r2dbc:postgresql://localhost:5433/paymentdb
+      username: paymentuser
+      password: paymentpass
+
+    flyway:
+      enabled: true
+      url: jdbc:postgresql://localhost:5433/paymentdb
+      user: paymentuser
+      password: paymentpass
+      baseline-on-migrate: true
+
+    rabbitmq:
+      host: localhost
+      port: 5672
+      username: ecouser
+      password: ecopass
+
+server:
+  port: 8083
+
+logging:
+  level:
+    com.unimag.trip_service: DEBUG
+    org.springframework.web: INFO
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${random.value}
