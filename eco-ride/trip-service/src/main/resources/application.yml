@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: trip-service
+
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5433/tripdb
+    username: tripuser
+    password: trippass
+
+  flyway:
+    enabled: true
+    url: jdbc:postgresql://localhost:5433/tripdb
+    user: tripuser
+    password: trippass
+    baseline-on-migrate: true
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: ecouser
+    password: ecopass
+
+server:
+  port: 8085
+
+# OpenAPI Documentation
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+
+logging:
+  level:
+    com.unimag.trip_service: DEBUG
+    org.springframework.web: INFO

@@ -1,0 +1,229 @@
+version: '3.8'
+
+services:
+
+  apigateway-service:
+    build: ./api-gateway
+    container_name: api-gateway-service
+    ports:
+      - "8081:8080"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ecouser
+      SPRING_RABBITMQ_PASSWORD: ecopass
+      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/eco-ride-dev
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    networks:
+      - eco-network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: on-failure
+
+  trip-service:
+    build: ./trip-service
+    container_name: eco-trip-service
+    ports:
+      - "8082:8080"
+    depends_on:
+      - eureka-server
+      - trip-db
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://trip-db:5432/tripdb
+      SPRING_DATASOURCE_USERNAME: tripuser
+      SPRING_DATASOURCE_PASSWORD: trippass
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    networks:
+      - eco-network
+
+  passenger-service:
+    build: ./passenger-service
+    container_name: eco-passenger-service
+    ports:
+      - "8083:8080"
+    depends_on:
+      - eureka-server
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    networks:
+      - eco-network
+
+  # PostgreSQL para TripService
+  trip-db:
+    image: postgres:15-alpine
+    container_name: eco-trip-db
+    environment:
+      POSTGRES_DB: tripdb
+      POSTGRES_USER: tripuser
+      POSTGRES_PASSWORD: trippass
+    ports:
+      - "5433:5432"
+    volumes:
+      - trip-data:/var/lib/postgresql/data
+    networks:
+      - eco-network
+
+  payment-db:
+    image: postgres:15-alpine
+    container_name: eco-payment-db
+    environment:
+      POSTGRES_DB: paymentdb
+      POSTGRES_USER: paymentuser
+      POSTGRES_PASSWORD: paymentpass
+    ports:
+      - "5434:5432"
+    volumes:
+      - payment-data:/var/lib/postgresql/data
+    networks:
+      - eco-network
+
+  # PostgreSQL para PassengerService
+  passenger-db:
+    image: postgres:15-alpine
+    container_name: eco-passenger-db
+    environment:
+      POSTGRES_DB: passengerdb
+      POSTGRES_USER: passengeruser
+      POSTGRES_PASSWORD: passengerpass
+    ports:
+      - "5435:5432"
+    volumes:
+      - passenger-data:/var/lib/postgresql/data
+    networks:
+      - eco-network
+
+  # Kafka & Zookeeper
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: eco-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - eco-network
+
+  # ============================================
+  # RABBITMQ - Message Broker
+  # ============================================
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: eco-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ecouser
+      RABBITMQ_DEFAULT_PASS: ecopass
+      RABBITMQ_DEFAULT_VHOST: /
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - eco-network
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ============================================
+  # KEYCLOAK - Servidor de Autenticación
+  # ============================================
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.0
+    container_name: eco-keycloak
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+    command:
+      - start-dev
+      - --import-realm
+    volumes:
+      - ./keycloak-realm.json:/opt/keycloak/data/import/realm.json
+    ports:
+      - "8180:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - eco-network
+    healthcheck:
+      test: [ "CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 || exit 1" ]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 120s
+
+  # ============================================
+  # POSTGRESQL - Base de datos para Keycloak
+  # ============================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: eco-postgres
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - eco-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # EUREKA SERVER
+  # ============================================
+  eureka-server:
+    image: steeltoeoss/eureka-server:latest
+    container_name: eco-eureka
+    ports:
+      - "8761:8761"
+    environment:
+      EUREKA_CLIENT_REGISTER_WITH_EUREKA: 'false'
+      EUREKA_CLIENT_FETCH_REGISTRY: 'false'
+    networks:
+      - eco-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8761/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s  # Dar más tiempo de inicio
+
+networks:
+  eco-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  trip-data:
+  payment-data:
+  passenger-data:
+  rabbitmq_data:
