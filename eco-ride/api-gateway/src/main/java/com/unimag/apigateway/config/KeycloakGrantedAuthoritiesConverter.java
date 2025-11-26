@@ -4,6 +4,7 @@ import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
+import reactor.core.publisher.Mono;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -13,7 +14,7 @@ import java.util.stream.Collectors;
  * Convierte roles del realm y scopes en GrantedAuthority para Spring Security.
  */
 
-public class KeycloakGrantedAuthoritiesConverter implements Converter<Jwt, Collection<GrantedAuthority>> {
+public class KeycloakGrantedAuthoritiesConverter implements Converter<Jwt, Mono<Collection<GrantedAuthority>>> {
 
     private static final String REALM_ACCESS = "realm_access";
     private static final String ROLES = "roles";
@@ -22,22 +23,21 @@ public class KeycloakGrantedAuthoritiesConverter implements Converter<Jwt, Colle
     private static final String SCOPE_PREFIX = "SCOPE_";
 
     @Override
-    public Collection<GrantedAuthority> convert(Jwt jwt) {
-
+    public Mono<Collection<GrantedAuthority>> convert(Jwt jwt) {
         Collection<GrantedAuthority> grantedAuthorities = new ArrayList<>();
 
         // Extraer roles del realm
+        @SuppressWarnings("unchecked")
         Map<String, Object> realmAccess = jwt.getClaim(REALM_ACCESS);
         if (realmAccess != null && realmAccess.containsKey(ROLES)) {
             @SuppressWarnings("unchecked")
             List<String> roles = (List<String>) realmAccess.get(ROLES);
-
-            List<GrantedAuthority> realmAuthorities = roles.stream()
-                    .map(role -> new SimpleGrantedAuthority(ROLE_PREFIX + role.toUpperCase()))
-                    .collect(Collectors.toList());
-
-            grantedAuthorities.addAll(realmAuthorities);
-
+            if (roles != null && !roles.isEmpty()) {
+                List<GrantedAuthority> realmAuthorities = roles.stream()
+                        .map(role -> new SimpleGrantedAuthority(ROLE_PREFIX + role.toUpperCase()))
+                        .collect(Collectors.toList());
+                grantedAuthorities.addAll(realmAuthorities);
+            }
         }
 
         // Extraer scopes (separados por espacios)
@@ -46,10 +46,9 @@ public class KeycloakGrantedAuthoritiesConverter implements Converter<Jwt, Colle
             List<GrantedAuthority> scopeAuthorities = Arrays.stream(scopes.split(" "))
                     .map(scope -> new SimpleGrantedAuthority(SCOPE_PREFIX + scope))
                     .collect(Collectors.toList());
-
             grantedAuthorities.addAll(scopeAuthorities);
         }
 
-        return grantedAuthorities;
+        return Mono.just(grantedAuthorities);
     }
 }
