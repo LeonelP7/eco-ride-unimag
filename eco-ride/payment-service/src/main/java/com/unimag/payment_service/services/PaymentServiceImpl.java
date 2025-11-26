@@ -54,8 +54,6 @@ public class PaymentServiceImpl implements PaymentService {
                                     charge.getId(),
                                     "Conectarse con passenger service para solicitar email y nombre del pasajero",
                                     "Avendaño"
-                                    // event.email(), // Asumiendo que viene en el evento
-                                    // event.passengerName() // Asumiendo que viene en el evento
                             )
                     ).thenReturn(intent);
                 })
