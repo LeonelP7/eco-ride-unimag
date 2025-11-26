@@ -2,6 +2,64 @@ version: '3.8'
 
 services:
 
+  apigateway-service:
+    build: ./api-gateway
+    container_name: api-gateway-service
+    ports:
+      - "8081:8080"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ecouser
+      SPRING_RABBITMQ_PASSWORD: ecopass
+      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/eco-ride-dev
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    networks:
+      - eco-network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: on-failure
+
+  trip-service:
+    build: ./trip-service
+    container_name: eco-trip-service
+    ports:
+      - "8082:8080"
+    depends_on:
+      - eureka-server
+      - trip-db
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://trip-db:5432/tripdb
+      SPRING_DATASOURCE_USERNAME: tripuser
+      SPRING_DATASOURCE_PASSWORD: trippass
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    networks:
+      - eco-network
+
+  passenger-service:
+    build: ./passenger-service
+    container_name: eco-passenger-service
+    ports:
+      - "8083:8080"
+    depends_on:
+      - eureka-server
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    networks:
+      - eco-network
+
   # PostgreSQL para TripService
   trip-db:
     image: postgres:15-alpine
@@ -31,6 +89,21 @@ services:
     networks:
       - eco-network
 
+  # PostgreSQL para PassengerService
+  passenger-db:
+    image: postgres:15-alpine
+    container_name: eco-passenger-db
+    environment:
+      POSTGRES_DB: passengerdb
+      POSTGRES_USER: passengeruser
+      POSTGRES_PASSWORD: passengerpass
+    ports:
+      - "5435:5432"
+    volumes:
+      - passenger-data:/var/lib/postgresql/data
+    networks:
+      - eco-network
+
   # Kafka & Zookeeper
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
@@ -40,25 +113,6 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
-    networks:
-      - eco-network
-
-  kafka:
-    image: confluentinc/cp-kafka:7.5.0
-    container_name: eco-kafka
-    depends_on:
-      - zookeeper
-    ports:
-      - "9092:9092"
-      - "29092:29092"
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-
     networks:
       - eco-network
 
@@ -73,8 +127,8 @@ services:
       RABBITMQ_DEFAULT_PASS: ecopass
       RABBITMQ_DEFAULT_VHOST: /
     ports:
-      - "5672:5672"    # Puerto AMQP
-      - "15672:15672"  # Puerto Management UI
+      - "5672:5672"
+      - "15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
@@ -89,7 +143,7 @@ services:
   # KEYCLOAK - Servidor de Autenticación
   # ============================================
   keycloak:
-    image: quay.io/keycloak/keycloak:26.4.5
+    image: quay.io/keycloak/keycloak:26.0.0
     container_name: eco-keycloak
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
@@ -98,13 +152,14 @@ services:
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
       KC_DB_USERNAME: keycloak
       KC_DB_PASSWORD: keycloak
-      KC_HOSTNAME: localhost
-      KC_HOSTNAME_PORT: 8180
-      KC_HTTP_PORT: 8080
-      KC_HOSTNAME_STRICT_HTTPS: false
-      KC_HTTP_ENABLED: true
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
     command:
       - start-dev
+      - --import-realm
+    volumes:
+      - ./keycloak-realm.json:/opt/keycloak/data/import/realm.json
     ports:
       - "8180:8080"
     depends_on:
@@ -113,10 +168,11 @@ services:
     networks:
       - eco-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8180/health/ready"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+      test: [ "CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 || exit 1" ]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 120s
 
   # ============================================
   # POSTGRESQL - Base de datos para Keycloak
@@ -141,25 +197,6 @@ services:
       retries: 5
 
   # ============================================
-  # REDIS - Para Rate Limiting
-  # ============================================
-#  redis:
-#    image: redis:7-alpine
-#    container_name: eco-redis
-#    command: redis-server --requirepass ecoredis123
-#    ports:
-#      - "6379:6379"
-#    volumes:
-#      - redis_data:/data
-#    networks:
-#      - eco-network
-#    healthcheck:
-#      test: [ "CMD", "redis-cli", "-a", "ecoredis123", "ping" ]
-#      interval: 10s
-#      timeout: 3s
-#      retries: 5
-
-  # ============================================
   # EUREKA SERVER
   # ============================================
   eureka-server:
@@ -168,15 +205,16 @@ services:
     ports:
       - "8761:8761"
     environment:
-      EUREKA_CLIENT_REGISTER_WITH_EUREKA: false
-      EUREKA_CLIENT_FETCH_REGISTRY: false
+      EUREKA_CLIENT_REGISTER_WITH_EUREKA: 'false'
+      EUREKA_CLIENT_FETCH_REGISTRY: 'false'
     networks:
       - eco-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8761/ || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 5
+      retries: 10
+      start_period: 120s  # Dar más tiempo de inicio
 
 networks:
   eco-network:
@@ -187,4 +225,5 @@ volumes:
   redis_data:
   trip-data:
   payment-data:
+  passenger-data:
   rabbitmq_data:

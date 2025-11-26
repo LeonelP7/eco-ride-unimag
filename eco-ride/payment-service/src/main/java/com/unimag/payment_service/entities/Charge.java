@@ -21,7 +21,7 @@ public class Charge {
     private String id;
 
     @Column("payment_intent_id")
-    private String paymentIntentId; // antes PaymentIntent paymentIntent
+    private String paymentIntentId;
 
     private String provider;
 

@@ -1,0 +1,54 @@
+spring:
+  application:
+    name: passenger-service
+
+  # Configuración R2DBC (Reactivo)
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5435/passengerdb
+    username: passengeruser
+    password: passengerpass
+
+  # Configuración Flyway (Migraciones - usa JDBC)
+  flyway:
+    enabled: true
+    url: jdbc:postgresql://localhost:5435/passengerdb
+    user: passengeruser
+    password: passengerpass
+    baseline-on-migrate: true
+
+  # Configuración RabbitMQ
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: ecouser
+    password: ecopass
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${random.value}
+
+# Configuración del servidor
+server:
+  port: 8082
+
+# OpenAPI Documentation
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+
+# Logging
+logging:
+  level:
+    com.unimag.passenger_service: DEBUG
+    org.springframework.web: INFO
+    org.springframework.r2dbc: DEBUG
