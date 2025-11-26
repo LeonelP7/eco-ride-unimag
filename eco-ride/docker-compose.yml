@@ -8,15 +8,18 @@ services:
     ports:
       - "8081:8080"
     depends_on:
-      - rabbitmq
-      - keycloak
-      - eureka-server
+      rabbitmq:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
     environment:
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: ecouser
       SPRING_RABBITMQ_PASSWORD: ecopass
-      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/eco-ride-de
+      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/eco-ride-dev
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
     networks:
       - eco-network
@@ -26,6 +29,36 @@ services:
       timeout: 10s
       retries: 5
     restart: on-failure
+
+  trip-service:
+    build: ./trip-service
+    container_name: eco-trip-service
+    ports:
+      - "8082:8080"
+    depends_on:
+      - eureka-server
+      - trip-db
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://trip-db:5432/tripdb
+      SPRING_DATASOURCE_USERNAME: tripuser
+      SPRING_DATASOURCE_PASSWORD: trippass
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    networks:
+      - eco-network
+
+  passenger-service:
+    build: ./passenger-service
+    container_name: eco-passenger-service
+    ports:
+      - "8083:8080"
+    depends_on:
+      - eureka-server
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    networks:
+      - eco-network
 
   # PostgreSQL para TripService
   trip-db:
@@ -104,14 +137,14 @@ services:
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
       KC_DB_USERNAME: keycloak
       KC_DB_PASSWORD: keycloak
-      KC_HOSTNAME: keycloak
-      KC_HOSTNAME_PORT: 8080
-      KC_HOSTNAME_STRICT: false
-      KC_HTTP_ENABLED: true
-      KC_HEALTH_ENABLED: true
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
     command:
       - start-dev
-      - --http-port=8080
+      - --import-realm
+    volumes:
+      - ./keycloak-realm.json:/opt/keycloak/data/import/realm.json
     ports:
       - "8180:8080"
     depends_on:
@@ -121,10 +154,10 @@ services:
       - eco-network
     healthcheck:
       test: [ "CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 || exit 1" ]
-      interval: 10s
+      interval: 15s
       timeout: 5s
-      retries: 30
-      start_period: 90s
+      retries: 20
+      start_period: 120s
 
   # ============================================
   # POSTGRESQL - Base de datos para Keycloak
